@@ -21,7 +21,6 @@ export default function AuthLandingPage({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [branch, setBranch] = useState('Computer Science & Eng (CSE)');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -69,8 +68,7 @@ export default function AuthLandingPage({ onLogin }) {
           body: JSON.stringify({
             name: name.trim(),
             email: email.trim(),
-            passcode: password,
-            branch
+            passcode: password
           })
         });
 
@@ -97,7 +95,7 @@ export default function AuthLandingPage({ onLogin }) {
     } else {
       // Sign In
       if (!email.trim()) {
-        setError('Please enter your student email or roll number.');
+        setError('Please enter your student email.');
         return;
       }
       if (!password) {
@@ -849,12 +847,12 @@ export default function AuthLandingPage({ onLogin }) {
               )}
 
               <div className="auth-field-group">
-                <label className="auth-label">Student Email / Roll Number</label>
+                <label className="auth-label">Student Email</label>
                 <input
-                  type="text"
+                  type="email"
                   name="cm_student_identifier_field_unique"
                   className="auth-input"
-                  placeholder="Enter student email or roll number..."
+                  placeholder="Enter your student email..."
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="off"
@@ -864,24 +862,6 @@ export default function AuthLandingPage({ onLogin }) {
                   data-lpignore="true"
                 />
               </div>
-
-              {authMode === 'signup' && (
-                <div className="auth-field-group">
-                  <label className="auth-label">Department / Branch</label>
-                  <select
-                    name="cm_student_branch_field_unique"
-                    className="auth-input"
-                    value={branch}
-                    onChange={(e) => setBranch(e.target.value)}
-                  >
-                    <option value="Information Technology (IT)">Information Technology (IT)</option>
-                    <option value="Computer Science & Eng (CSE)">Computer Science & Eng (CSE)</option>
-                    <option value="Artificial Intelligence (AI/ML)">Artificial Intelligence (AI/ML)</option>
-                    <option value="Electronics & Communication (ECE)">Electronics & Communication (ECE)</option>
-                    <option value="Mechanical / Civil Engineering">Mechanical / Civil Engineering</option>
-                  </select>
-                </div>
-              )}
 
               <div className="auth-field-group">
                 <label className="auth-label">Passcode / Password</label>
