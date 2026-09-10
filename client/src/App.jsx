@@ -11,6 +11,10 @@ import HistoryModal from './components/HistoryModal.jsx';
 import { sanitizeNotesInput, containsMojiboke } from './utils/textSanitizer.js';
 import { apiUrl } from './utils/api.js';
 
+// User-scoped storage key helpers to prevent cross-account data leakage
+const getUserDecksKey = (email) => (email ? `pm_saved_decks_${email.trim().toLowerCase()}` : 'pm_saved_decks_guest');
+const getUserHistoryKey = (email) => (email ? `pm_note_history_${email.trim().toLowerCase()}` : 'pm_note_history_guest');
+
 export default function App() {
   // Authentication & student profile
   const [currentUser, setCurrentUser] = useState(() => {
@@ -48,11 +52,14 @@ export default function App() {
   // Gamification & reminders
   const [dailyReminderEnabled, setDailyReminderEnabled] = useState(false);
 
-  // Generated Notes History
+  // Generated Notes History (scoped to current student)
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [noteHistory, setNoteHistory] = useState(() => {
     try {
-      const stored = localStorage.getItem('pm_note_history');
+      const storedUser = localStorage.getItem('pm_user');
+      const email = storedUser ? JSON.parse(storedUser)?.email : null;
+      if (!email) return [];
+      const stored = localStorage.getItem(getUserHistoryKey(email));
       return stored ? JSON.parse(stored) : [];
     } catch (e) {
       return [];
@@ -66,59 +73,40 @@ export default function App() {
       .then((data) => setServerStatus(data))
       .catch((err) => console.warn('Could not reach backend health check:', err));
 
-    // Load persisted subjects, decks, streak, and reminders
+    // Load persisted subjects and reminders
     try {
+      // Purge legacy shared keys so previous users' state does not contaminate
+      localStorage.removeItem('pm_saved_decks');
+      localStorage.removeItem('pm_note_history');
+
       const storedSubjects = localStorage.getItem('pm_subjects');
       if (storedSubjects) setSavedSubjects(JSON.parse(storedSubjects));
 
-      const storedDecks = localStorage.getItem('pm_saved_decks');
-      if (storedDecks) {
-        const parsedDecks = JSON.parse(storedDecks);
-        let purgedAny = false;
-
-        // Inspect and purge any cached decks containing binary mojiboke (\uFFFD)
-        for (const sub of Object.keys(parsedDecks)) {
-          const deck = parsedDecks[sub];
-          const hasBadNotes = deck?.notes && (deck.notes.includes('\uFFFD') || containsMojiboke(deck.notes));
-          const hasBadTitle = deck?.studyData?.title && (deck.studyData.title.includes('\uFFFD') || containsMojiboke(deck.studyData.title));
-          const hasBadSummary = deck?.studyData?.summary && (deck.studyData.summary.includes('\uFFFD') || containsMojiboke(deck.studyData.summary));
-
-          if (hasBadNotes || hasBadTitle || hasBadSummary) {
-            delete parsedDecks[sub];
-            purgedAny = true;
-          }
-        }
-
-        if (purgedAny) {
-          localStorage.setItem('pm_saved_decks', JSON.stringify(parsedDecks));
-        }
-
-        setSavedDecks(parsedDecks);
-        if (parsedDecks['General'] && parsedDecks['General'].studyData) {
-          setNotes(parsedDecks['General'].notes || '');
-          setStudyData(parsedDecks['General'].studyData);
-          setActiveView('summary');
-        } else {
-          setNotes('');
-          setStudyData(null);
-          setActiveView('input');
-        }
-      } else {
-        setActiveView('input');
-      }
-
       const storedReminder = localStorage.getItem('pm_reminder');
       if (storedReminder) setDailyReminderEnabled(storedReminder === 'true');
+
+      // Load user-scoped decks for current user if logged in
+      const storedUser = localStorage.getItem('pm_user');
+      const email = storedUser ? JSON.parse(storedUser)?.email : null;
+      if (email) {
+        const userDecks = localStorage.getItem(getUserDecksKey(email));
+        if (userDecks) {
+          const parsedDecks = JSON.parse(userDecks);
+          setSavedDecks(parsedDecks);
+        }
+      }
+      // Always start fresh on the input screen
+      setActiveView('input');
     } catch (e) {
       console.warn('LocalStorage error on mount:', e);
     }
   }, []);
 
-  // Helper to persist savedDecks
-  const persistDecks = (newDecks) => {
+  // Helper to persist savedDecks per user
+  const persistDecks = (newDecks, userEmail = currentUser?.email) => {
     setSavedDecks(newDecks);
     try {
-      localStorage.setItem('pm_saved_decks', JSON.stringify(newDecks));
+      localStorage.setItem(getUserDecksKey(userEmail), JSON.stringify(newDecks));
     } catch (e) {
       console.warn('Could not persist decks to localStorage:', e);
     }
@@ -127,8 +115,34 @@ export default function App() {
   // Student auth handlers
   const handleLogin = (userData) => {
     setCurrentUser(userData);
+    // Reset workspace completely for the new user session
+    setNotes('');
+    setStudyData(null);
+    setActiveView('input');
+    setError(null);
+    setCurrentSubject('General');
+
     try {
       localStorage.setItem('pm_user', JSON.stringify(userData));
+      localStorage.removeItem('pm_saved_decks'); // Purge legacy shared state
+
+      // Load user-specific decks if any
+      const userDecksKey = getUserDecksKey(userData.email);
+      const storedDecks = localStorage.getItem(userDecksKey);
+      if (storedDecks) {
+        setSavedDecks(JSON.parse(storedDecks));
+      } else {
+        setSavedDecks({});
+      }
+
+      // Load user-specific note history from cache immediately
+      const userHistKey = getUserHistoryKey(userData.email);
+      const storedHist = localStorage.getItem(userHistKey);
+      if (storedHist) {
+        setNoteHistory(JSON.parse(storedHist));
+      } else {
+        setNoteHistory([]);
+      }
     } catch (e) {
       console.warn('Could not save user session:', e);
     }
@@ -145,8 +159,19 @@ export default function App() {
 
   const handleLogout = () => {
     setCurrentUser(null);
+    // Completely clear all active study data and reset workspace to clean slate
+    setNotes('');
+    setStudyData(null);
+    setActiveView('input');
+    setSavedDecks({});
+    setNoteHistory([]);
+    setCurrentSubject('General');
+    setError(null);
+
     try {
       localStorage.removeItem('pm_user');
+      localStorage.removeItem('pm_saved_decks');
+      localStorage.removeItem('pm_note_history');
     } catch (e) {
       console.warn('Could not clear user session:', e);
     }
@@ -154,7 +179,10 @@ export default function App() {
 
   // Fetch online note history on user mount or change
   useEffect(() => {
-    if (!currentUser?.email) return;
+    if (!currentUser?.email) {
+      setNoteHistory([]);
+      return;
+    }
 
     fetch(apiUrl(`/api/history?email=${encodeURIComponent(currentUser.email)}`))
       .then((res) => res.json())
@@ -162,7 +190,8 @@ export default function App() {
         if (data.success && Array.isArray(data.items)) {
           setNoteHistory(data.items);
           try {
-            localStorage.setItem('pm_note_history', JSON.stringify(data.items));
+            const userHistKey = getUserHistoryKey(currentUser.email);
+            localStorage.setItem(userHistKey, JSON.stringify(data.items));
           } catch (e) {}
         }
       })
@@ -171,8 +200,9 @@ export default function App() {
 
   // Save generated notes & revision deck into history (MongoDB + local backup)
   const saveToHistory = async (cleanText, generatedData, subject) => {
+    const userEmail = currentUser?.email || 'student@college.edu';
     const historyPayload = {
-      email: currentUser?.email || 'student@college.edu',
+      email: userEmail,
       subject: subject || currentSubject,
       title: generatedData?.title || 'Class Lecture Notes',
       rawNotes: cleanText,
@@ -182,14 +212,14 @@ export default function App() {
       createdAt: new Date().toISOString()
     };
 
-    // Update local state and localStorage immediately
+    // Update local state and user-scoped localStorage immediately
     setNoteHistory((prev) => {
       const filtered = prev.filter(
         (h) => !(h.title === historyPayload.title && h.subject === historyPayload.subject)
       );
       const updated = [historyPayload, ...filtered];
       try {
-        localStorage.setItem('pm_note_history', JSON.stringify(updated));
+        localStorage.setItem(getUserHistoryKey(userEmail), JSON.stringify(updated));
       } catch (e) {}
       return updated;
     });
@@ -238,7 +268,8 @@ export default function App() {
     setNoteHistory((prev) => {
       const updated = prev.filter((item) => (item._id || item.id) !== id);
       try {
-        localStorage.setItem('pm_note_history', JSON.stringify(updated));
+        const key = getUserHistoryKey(currentUser?.email);
+        localStorage.setItem(key, JSON.stringify(updated));
       } catch (e) {}
       return updated;
     });

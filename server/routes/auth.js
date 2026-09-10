@@ -2,11 +2,19 @@ import express from 'express';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { User } from '../models/User.js';
+import { connectDB } from '../config/db.js';
 
 export const authRouter = express.Router();
 
-// Fallback in-memory store if DB is temporarily disconnected
-const inMemoryUsers = [];
+/**
+ * Ensures MongoDB is connected before running authentication queries.
+ */
+async function ensureDbConnected() {
+  if (mongoose.connection.readyState !== 1) {
+    await connectDB();
+  }
+  return mongoose.connection.readyState === 1;
+}
 
 /**
  * POST /api/auth/register
@@ -28,23 +36,21 @@ authRouter.post('/register', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Passcode must be at least 4 characters.' });
     }
 
+    const isConnected = await ensureDbConnected();
+    if (!isConnected) {
+      return res.status(503).json({
+        success: false,
+        error: 'MongoDB database is currently unreachable. Please make sure MongoDB service is running.'
+      });
+    }
+
     // Check if account already exists in MongoDB
-    if (mongoose.connection.readyState === 1) {
-      const existingUser = await User.findOne({ email: normalizedEmail });
-      if (existingUser) {
-        return res.status(409).json({
-          success: false,
-          error: `An account with ${normalizedEmail} already exists. Please Sign In with your passcode.`
-        });
-      }
-    } else {
-      const existing = inMemoryUsers.find(u => u.email === normalizedEmail);
-      if (existing) {
-        return res.status(409).json({
-          success: false,
-          error: `An account with ${normalizedEmail} already exists. Please Sign In with your passcode.`
-        });
-      }
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        error: `An account with ${normalizedEmail} already exists. Please Sign In with your passcode.`
+      });
     }
 
     const hashedPasscode = await bcrypt.hash(rawPasscode, 10);
@@ -64,31 +70,23 @@ authRouter.post('/register', async (req, res) => {
     };
 
     let savedUser = null;
-
-    if (mongoose.connection.readyState === 1) {
-      try {
-        const newUser = new User(userData);
-        await newUser.save();
-        savedUser = newUser.toObject();
-      } catch (dbErr) {
-        console.error('MongoDB save error in /register:', dbErr.message);
-        if (dbErr.code === 11000) {
-          return res.status(409).json({
-            success: false,
-            error: `An account with ${normalizedEmail} already exists in database. Please Sign In.`
-          });
-        }
+    try {
+      const newUser = new User(userData);
+      await newUser.save();
+      savedUser = newUser.toObject();
+    } catch (dbErr) {
+      console.error('MongoDB save error in /register:', dbErr.message);
+      if (dbErr.code === 11000) {
+        return res.status(409).json({
+          success: false,
+          error: `An account with ${normalizedEmail} already exists in database. Please Sign In.`
+        });
       }
+      return res.status(500).json({
+        success: false,
+        error: `Database save error: ${dbErr.message}`
+      });
     }
-
-    if (!savedUser) {
-      savedUser = {
-        _id: 'user_' + Date.now(),
-        ...userData
-      };
-    }
-
-    inMemoryUsers.push({ ...savedUser, rawPasscode });
 
     const userPayload = {
       _id: savedUser._id,
@@ -110,7 +108,7 @@ authRouter.post('/register', async (req, res) => {
     });
   } catch (err) {
     console.error('Registration error:', err);
-    return res.status(500).json({ success: false, error: 'Could not register user.' });
+    return res.status(500).json({ success: false, error: err.message || 'Could not register user.' });
   }
 });
 
@@ -129,19 +127,15 @@ authRouter.post('/login', async (req, res) => {
     const rawPasscode = passcode || password;
     const normalizedEmail = email.trim().toLowerCase();
 
-    let foundUser = null;
-
-    if (mongoose.connection.readyState === 1) {
-      try {
-        foundUser = await User.findOne({ email: normalizedEmail });
-      } catch (dbErr) {
-        console.warn('MongoDB query error in /login:', dbErr.message);
-      }
+    const isConnected = await ensureDbConnected();
+    if (!isConnected) {
+      return res.status(503).json({
+        success: false,
+        error: 'MongoDB database is currently unreachable. Please make sure MongoDB service is running.'
+      });
     }
 
-    if (!foundUser) {
-      foundUser = inMemoryUsers.find(u => u.email === normalizedEmail);
-    }
+    const foundUser = await User.findOne({ email: normalizedEmail });
 
     if (!foundUser) {
       return res.status(404).json({
@@ -154,7 +148,7 @@ authRouter.post('/login', async (req, res) => {
     if (rawPasscode && (foundUser.passcode || foundUser.password)) {
       const hashToCompare = foundUser.passcode || foundUser.password;
       const isMatch = await bcrypt.compare(rawPasscode, hashToCompare).catch(() => false);
-      if (!isMatch && foundUser.rawPasscode !== rawPasscode) {
+      if (!isMatch) {
         return res.status(401).json({
           success: false,
           error: 'Incorrect passcode. Please check your credentials and try again.'

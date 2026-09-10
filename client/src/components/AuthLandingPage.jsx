@@ -79,30 +79,16 @@ export default function AuthLandingPage({ onLogin }) {
           onLogin(data.user);
           return;
         } else {
-          // If server reported validation error
-          if (data?.error) {
-            setError(data.error);
-            setIsSubmitting(false);
-            return;
-          }
+          setError(data?.error || 'Registration failed. Please check your details.');
+          return;
         }
       } catch (err) {
-        console.warn('Backend register request failed, falling back to local session:', err);
+        console.error('Backend register request failed:', err);
+        setError('Could not reach backend server. Please verify the server is running on port 5000.');
+        return;
       } finally {
         setIsSubmitting(false);
       }
-
-      // Offline / fallback signup
-      const fallbackUser = {
-        name: name.trim(),
-        email: email.trim(),
-        branch: branch,
-        role: 'Student',
-        avatar: '/avatars/avatar-1.png',
-        avatarInitial: name.trim()[0].toUpperCase(),
-        loggedInAt: new Date().toISOString()
-      };
-      onLogin(fallbackUser);
     } else {
       // Sign In
       if (!email.trim()) {
@@ -130,30 +116,17 @@ export default function AuthLandingPage({ onLogin }) {
         if (response.ok && data.success && data.user) {
           onLogin(data.user);
           return;
-        } else if (data?.error) {
-          setError(data.error);
-          setIsSubmitting(false);
+        } else {
+          setError(data?.error || 'Invalid email or passcode. Please check your credentials.');
           return;
         }
       } catch (err) {
-        console.warn('Backend login request failed, falling back to local session:', err);
+        console.error('Backend login request failed:', err);
+        setError('Could not reach backend server. Please verify the server is running on port 5000.');
+        return;
       } finally {
         setIsSubmitting(false);
       }
-
-      const guessedName = email.split('@')[0].replace(/[._-]/g, ' ');
-      const formattedName = guessedName.charAt(0).toUpperCase() + guessedName.slice(1);
-
-      const fallbackUser = {
-        name: formattedName || 'Student',
-        email: email.trim(),
-        branch: 'Computer Science & Engineering',
-        role: 'Student',
-        avatar: '/avatars/avatar-1.png',
-        avatarInitial: (formattedName[0] || 'S').toUpperCase(),
-        loggedInAt: new Date().toISOString()
-      };
-      onLogin(fallbackUser);
     }
   };
 
