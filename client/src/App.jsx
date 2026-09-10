@@ -6,6 +6,7 @@ import NotesInputScreen from './components/NotesInputScreen.jsx';
 import ResultsScreen from './components/ResultsScreen.jsx';
 import AuthLandingPage from './components/AuthLandingPage.jsx';
 import StudyPlanModal from './components/StudyPlanModal.jsx';
+import UserDetailsModal from './components/UserDetailsModal.jsx';
 import { sanitizeNotesInput, containsMojiboke } from './utils/textSanitizer.js';
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
   // Layout & active navigation view
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [activeView, setActiveView] = useState('input'); // 'input' | 'summary' | 'flashcards' | 'quiz' | 'analytics' | 'mistakes' | 'slides' | 'tutor' | 'plan'
+  const [isUserDetailsOpen, setIsUserDetailsOpen] = useState(false);
 
   // Subject management
   const [savedSubjects, setSavedSubjects] = useState(['General', 'Computer Science', 'Biology', 'Economics']);
@@ -117,6 +119,15 @@ export default function App() {
       localStorage.setItem('pm_user', JSON.stringify(userData));
     } catch (e) {
       console.warn('Could not save user session:', e);
+    }
+  };
+
+  const handleUpdateUser = (updatedUserData) => {
+    setCurrentUser(updatedUserData);
+    try {
+      localStorage.setItem('pm_user', JSON.stringify(updatedUserData));
+    } catch (e) {
+      console.warn('Could not update user session:', e);
     }
   };
 
@@ -325,6 +336,7 @@ export default function App() {
         onOpenStudyPlan={() => setActiveView('plan')}
         activeDeckTitle={studyData?.title || (notes ? notes.slice(0, 30) + '...' : 'New Revision Session')}
         currentUser={currentUser}
+        onOpenUserDetails={() => setIsUserDetailsOpen(true)}
         onLogout={handleLogout}
       />
 
@@ -357,6 +369,7 @@ export default function App() {
           onBreadcrumbRootClick={() => setActiveView('input')}
           onTopicClick={() => setActiveView('summary')}
           currentUser={currentUser}
+          onOpenUserDetails={() => setIsUserDetailsOpen(true)}
           onLogout={handleLogout}
         />
 
@@ -412,6 +425,19 @@ export default function App() {
           }}
         />
       </div>
+
+      {/* Student Profile & User Details Modal */}
+      {isUserDetailsOpen && (
+        <UserDetailsModal
+          user={currentUser}
+          onUpdateUser={handleUpdateUser}
+          onClose={() => setIsUserDetailsOpen(false)}
+          onLogout={handleLogout}
+          savedSubjects={savedSubjects}
+          studyStreak={studyStreak}
+          studyData={studyData}
+        />
+      )}
     </div>
   );
 }

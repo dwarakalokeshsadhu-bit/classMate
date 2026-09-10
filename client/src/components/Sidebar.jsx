@@ -2,7 +2,8 @@ import React from 'react';
 import {
   BookOpen, Home, Layers, CheckSquare, BarChart2, ShieldAlert,
   Presentation, MessageSquare, Plus, ChevronLeft, ChevronRight,
-  Folder, Calendar, Sparkles, BookMarked, Radio, LogOut, Bot
+  Folder, Calendar, Sparkles, BookMarked, Radio, LogOut, Bot,
+  User, ShieldCheck
 } from 'lucide-react';
 
 export default function Sidebar({
@@ -18,6 +19,7 @@ export default function Sidebar({
   onOpenStudyPlan,
   activeDeckTitle = "Active Study Set",
   currentUser,
+  onOpenUserDetails,
   onLogout
 }) {
   const hasStudySet = Boolean(studyData);
@@ -80,6 +82,23 @@ export default function Sidebar({
             >
               <span className="sidebar-nav-icon"><Calendar size={18} /></span>
               {!isCollapsed && <span className="sidebar-nav-label">Study Plan</span>}
+            </button>
+
+            <button
+              type="button"
+              className={`sidebar-nav-btn ${activeView === 'user-details' ? 'active' : ''}`}
+              onClick={onOpenUserDetails}
+              title="User Details & Student Profile"
+            >
+              <span className="sidebar-nav-icon"><User size={18} /></span>
+              {!isCollapsed && (
+                <>
+                  <span className="sidebar-nav-label">User Details</span>
+                  <span className="sidebar-nav-badge" style={{ background: 'rgba(150, 167, 141, 0.22)', color: '#96A78D' }}>
+                    Profile
+                  </span>
+                </>
+              )}
             </button>
           </div>
 
@@ -222,7 +241,7 @@ export default function Sidebar({
         {!isCollapsed ? (
           <div>
             {currentUser && (
-              <div style={{
+              <div className="sidebar-user-card" style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -230,21 +249,40 @@ export default function Sidebar({
                 background: 'rgba(255, 255, 255, 0.05)',
                 borderRadius: 'var(--radius-sm)',
                 marginBottom: 8,
-                border: '1px solid rgba(255, 255, 255, 0.08)'
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                gap: 6
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                <button
+                  type="button"
+                  onClick={onOpenUserDetails}
+                  title="Click to view full user details & academic profile"
+                  className="sidebar-user-profile-btn"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    overflow: 'hidden',
+                    background: 'transparent',
+                    border: 'none',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    padding: 0,
+                    flex: 1
+                  }}
+                >
                   <div style={{
-                    width: 26,
-                    height: 26,
+                    width: 28,
+                    height: 28,
                     borderRadius: '50%',
                     background: 'var(--primary)',
                     color: '#ffffff',
-                    fontSize: '0.75rem',
+                    fontSize: '0.8rem',
                     fontWeight: 700,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    flexShrink: 0
+                    flexShrink: 0,
+                    boxShadow: '0 0 0 2px rgba(150, 167, 141, 0.3)'
                   }}>
                     {currentUser.avatarInitial || 'S'}
                   </div>
@@ -256,26 +294,53 @@ export default function Sidebar({
                       {currentUser.branch || currentUser.role}
                     </div>
                   </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={onLogout}
-                  title="Sign Out"
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#8fa092',
-                    cursor: 'pointer',
-                    padding: 4,
-                    display: 'flex',
-                    alignItems: 'center'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.color = '#ff8080'}
-                  onMouseLeave={(e) => e.currentTarget.style.color = '#8fa092'}
-                >
-                  <LogOut size={14} />
                 </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    onClick={onOpenUserDetails}
+                    title="View Student Profile & Details"
+                    className="sidebar-user-details-btn"
+                    style={{
+                      background: 'rgba(150, 167, 141, 0.16)',
+                      border: '1px solid rgba(150, 167, 141, 0.35)',
+                      color: '#96A78D',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      padding: '4px 7px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontSize: '0.68rem',
+                      fontWeight: 600,
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <User size={12} />
+                    <span>Details</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    title="Sign Out"
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#8fa092',
+                      cursor: 'pointer',
+                      padding: 4,
+                      display: 'flex',
+                      alignItems: 'center',
+                      borderRadius: '6px'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = '#ff8080'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = '#8fa092'}
+                  >
+                    <LogOut size={14} />
+                  </button>
+                </div>
               </div>
             )}
 
@@ -285,16 +350,39 @@ export default function Sidebar({
             </div>
           </div>
         ) : (
-          <div style={{ textAlign: 'center', fontSize: '0.7rem', color: '#8fa092' }}>
+          <div style={{ textAlign: 'center', fontSize: '0.7rem', color: '#8fa092', display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
             {currentUser ? (
-              <button
-                type="button"
-                onClick={onLogout}
-                title={`Logged in as ${currentUser.name}. Click to log out`}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--primary)' }}
-              >
-                {currentUser.avatarInitial || 'S'}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={onOpenUserDetails}
+                  title={`View details for ${currentUser.name}`}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    background: 'var(--primary)',
+                    color: '#fff',
+                    border: 'none',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 0 0 2px rgba(150, 167, 141, 0.3)'
+                  }}
+                >
+                  {currentUser.avatarInitial || 'S'}
+                </button>
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  title="Sign Out"
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#8fa092', padding: 2 }}
+                >
+                  <LogOut size={14} />
+                </button>
+              </>
             ) : (
               <img src="/logo.png" alt="Class Mate" style={{ width: 22, height: 22, objectFit: 'contain' }} />
             )}

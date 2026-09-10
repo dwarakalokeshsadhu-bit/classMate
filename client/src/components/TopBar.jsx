@@ -21,6 +21,7 @@ export default function TopBar({
   onBreadcrumbRootClick,
   onTopicClick,
   currentUser,
+  onOpenUserDetails,
   onLogout
 }) {
   const hasStudySet = Boolean(studyData);
@@ -151,11 +152,28 @@ export default function TopBar({
 
         {/* User Account Profile & Logout */}
         {currentUser && (
-          <div className="user-profile-pill" title={`Logged in as ${currentUser.name} (${currentUser.branch || currentUser.role})`}>
-            <div className="user-avatar-circle">
-              {currentUser.avatarInitial || 'S'}
-            </div>
-            <span className="user-pill-name">{currentUser.name}</span>
+          <div className="user-profile-pill">
+            <button
+              type="button"
+              onClick={onOpenUserDetails}
+              className="user-profile-clickable-area"
+              title={`Click to view user details & profile (${currentUser.name})`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 0,
+                color: 'inherit'
+              }}
+            >
+              <div className="user-avatar-circle">
+                {currentUser.avatarInitial || 'S'}
+              </div>
+              <span className="user-pill-name">{currentUser.name}</span>
+            </button>
             <button
               type="button"
               className="user-logout-btn"
