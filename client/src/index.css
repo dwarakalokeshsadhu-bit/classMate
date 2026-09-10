@@ -4828,3 +4828,108 @@ body {
   }
 }
 
+/* Avatar Picker Styles */
+.user-details-avatar-cam-btn {
+  position: absolute;
+  bottom: -4px;
+  left: -4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #96A78D;
+  color: #18201B;
+  border: 2px solid #243027;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease;
+}
+
+.user-details-avatar-cam-btn:hover {
+  transform: scale(1.15);
+  background: #a7b79f;
+}
+
+.user-avatar-picker-panel {
+  background: #243027;
+  border: 1px solid #334436;
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 20px;
+  animation: userDetailsFadeIn 0.2s ease;
+}
+
+.avatar-picker-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #b4c5ac;
+  margin-bottom: 12px;
+}
+
+.avatar-presets-grid {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.avatar-preset-choice {
+  position: relative;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  padding: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.avatar-preset-choice:hover {
+  transform: scale(1.08);
+}
+
+.avatar-preset-choice.selected {
+  border-color: #96A78D;
+  box-shadow: 0 0 0 2px rgba(150, 167, 141, 0.4);
+}
+
+.avatar-selected-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #10b981;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #243027;
+}
+
+.avatar-upload-choice-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(150, 167, 141, 0.12);
+  border: 1.5px dashed rgba(150, 167, 141, 0.4);
+  color: #b4c5ac;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.avatar-upload-choice-btn:hover {
+  background: rgba(150, 167, 141, 0.22);
+  border-color: #96A78D;
+  color: #ffffff;
+}
+
+

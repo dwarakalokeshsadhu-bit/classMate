@@ -77,35 +77,6 @@ export default function TopBar({
         )}
       </div>
 
-      {/* Center Search */}
-      <div className="header-search-wrapper" style={{ position: 'relative' }}>
-        <Search size={14} className="search-icon" />
-        <input
-          type="text"
-          className="search-input"
-          placeholder="Search all notes, flashcards & subjects..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={{ width: '100%', fontSize: '0.8rem', padding: '6px 10px 6px 30px' }}
-        />
-        {searchMatches.length > 0 && (
-          <div className="search-dropdown-matches" style={{ top: '100%', left: 0, right: 0 }}>
-            {searchMatches.map(([sub, data]) => (
-              <div
-                key={sub}
-                className="search-match-item"
-                onClick={() => {
-                  if (onSelectSearchMatch) onSelectSearchMatch(sub, data);
-                  setSearchQuery('');
-                }}
-              >
-                <strong>{sub}</strong>: {(data.notes || '').slice(0, 45)}...
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
       {/* Right Action Tools */}
       <div className="top-bar-actions">
         {hasStudySet && (

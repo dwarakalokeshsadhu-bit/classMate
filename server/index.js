@@ -5,9 +5,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import generateRouter from './routes/generate.js';
+import { authRouter } from './routes/auth.js';
+import { connectDB } from './config/db.js';
 
 // Load environment variables
 dotenv.config();
+
+// Connect to MongoDB Atlas (if MONGODB_URI is provided)
+connectDB();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -50,6 +55,7 @@ app.get('/api/health', (req, res) => {
 
 // API Routes
 app.use('/api/generate', generateRouter);
+app.use('/api/auth', authRouter);
 
 // Serve static frontend assets if client dist exists (full-stack production deployment)
 const distPath = path.resolve(__dirname, '../client/dist');

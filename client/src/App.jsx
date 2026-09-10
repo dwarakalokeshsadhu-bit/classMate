@@ -45,7 +45,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Gamification & reminders
-  const [studyStreak, setStudyStreak] = useState(3);
+  const [studyStreak, setStudyStreak] = useState(() => currentUser?.streak || 1);
   const [dailyReminderEnabled, setDailyReminderEnabled] = useState(false);
 
   // Check backend health on mount and restore local persistence with auto-purge of corrupted decks
@@ -97,7 +97,8 @@ export default function App() {
       }
 
       const storedStreak = localStorage.getItem('pm_streak');
-      if (storedStreak) setStudyStreak(parseInt(storedStreak, 10));
+      const resolvedStreak = currentUser?.streak || (storedStreak ? parseInt(storedStreak, 10) : 1);
+      setStudyStreak(resolvedStreak);
 
       const storedReminder = localStorage.getItem('pm_reminder');
       if (storedReminder) setDailyReminderEnabled(storedReminder === 'true');

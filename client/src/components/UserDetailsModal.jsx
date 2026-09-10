@@ -1,9 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   User, Mail, GraduationCap, School, Flame, BookOpen,
   Layers, CheckSquare, ShieldAlert, Edit3, Check, X,
-  LogOut, ShieldCheck, Sparkles, Hash, Calendar, Award
+  LogOut, ShieldCheck, Sparkles, Hash, Calendar, Award,
+  Camera, Upload
 } from 'lucide-react';
+
+const PRESET_AVATARS = [
+  { id: 'av-1', src: '/avatars/avatar-1.png', label: 'Male Student (Glasses)' },
+  { id: 'av-2', src: '/avatars/avatar-2.png', label: 'Female Student (Blazer)' },
+  { id: 'av-3', src: '/avatars/avatar-3.png', label: 'Student (Headphones)' }
+];
 
 export default function UserDetailsModal({
   user,
@@ -11,23 +18,41 @@ export default function UserDetailsModal({
   onClose,
   onLogout,
   savedSubjects = [],
-  studyStreak = 3,
+  studyStreak = 1,
   studyData = null
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const fileInputRef = useRef(null);
+
   const [formData, setFormData] = useState({
     name: user?.name || 'Student',
     email: user?.email || 'user1@student.college.edu',
     branch: user?.branch || 'Computer Science & Engineering',
     rollNo: user?.rollNo || '24EG112B25',
     college: user?.college || 'Anurag University',
-    semester: user?.semester || '4th Semester (Year II)'
+    semester: user?.semester || '4th Semester (Year II)',
+    avatar: user?.avatar || '/avatars/avatar-1.png'
   });
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   const flashcardsCount = studyData?.flashcards?.length || 5;
   const quizCount = studyData?.quiz?.length || 4;
   const mistakeCount = studyData?.subtopics?.length || 2;
+
+  const handleCustomAvatarUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result;
+      if (base64) {
+        setFormData(prev => ({ ...prev, avatar: base64 }));
+        setShowAvatarPicker(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSave = (e) => {
     e.preventDefault();
@@ -80,13 +105,21 @@ export default function UserDetailsModal({
         {/* Profile Card Hero */}
         <div className="user-details-hero">
           <div className="user-details-avatar-wrap">
-            <div className="user-details-avatar" style={{ overflow: 'hidden', padding: 0 }}>
+            <div className="user-details-avatar" style={{ overflow: 'hidden', padding: 0, position: 'relative' }}>
               <img
-                src={user?.avatar || "/avatar.png"}
+                src={formData.avatar || user?.avatar || "/avatar.png"}
                 alt={formData.name}
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
             </div>
+            <button
+              type="button"
+              className="user-details-avatar-cam-btn"
+              onClick={() => setShowAvatarPicker(!showAvatarPicker)}
+              title="Change profile picture"
+            >
+              <Camera size={13} />
+            </button>
             <div className="user-details-online-dot" title="Online & Active" />
           </div>
 
@@ -118,6 +151,59 @@ export default function UserDetailsModal({
             <span>{isEditing ? 'Cancel' : 'Edit Profile'}</span>
           </button>
         </div>
+
+        {/* Interactive Avatar Selection Gallery */}
+        {showAvatarPicker && (
+          <div className="user-avatar-picker-panel">
+            <div className="avatar-picker-title">
+              <span>Choose Your Student Avatar</span>
+              <button
+                type="button"
+                onClick={() => setShowAvatarPicker(false)}
+                style={{ background: 'transparent', border: 'none', color: '#8fa092', cursor: 'pointer' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div className="avatar-presets-grid">
+              {PRESET_AVATARS.map((av) => (
+                <button
+                  key={av.id}
+                  type="button"
+                  className={`avatar-preset-choice ${formData.avatar === av.src ? 'selected' : ''}`}
+                  onClick={() => {
+                    setFormData(prev => ({ ...prev, avatar: av.src }));
+                  }}
+                  title={av.label}
+                >
+                  <img src={av.src} alt={av.label} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }} />
+                  {formData.avatar === av.src && (
+                    <div className="avatar-selected-badge">
+                      <Check size={10} color="#fff" />
+                    </div>
+                  )}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                className="avatar-upload-choice-btn"
+                onClick={() => fileInputRef.current?.click()}
+                title="Upload custom photo from computer"
+              >
+                <Upload size={16} color="#96A78D" />
+                <span>Upload Custom</span>
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleCustomAvatarUpload}
+                accept="image/*"
+                style={{ display: 'none' }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Content Area: Either Edit Form OR View Details */}
         {isEditing ? (
