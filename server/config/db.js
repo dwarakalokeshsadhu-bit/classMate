@@ -10,7 +10,8 @@ export async function connectDB() {
   try {
     mongoose.set('strictQuery', false);
     await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 5000
+      serverSelectionTimeoutMS: 5000,
+      family: 4
     });
     console.log(`🍃 MongoDB: Connected successfully to ${uri.includes('127.0.0.1') ? 'local MongoDB database (pocketmentor)' : 'MongoDB cluster'}`);
     return true;
@@ -19,7 +20,10 @@ export async function connectDB() {
     if (uri !== 'mongodb://127.0.0.1:27017/pocketmentor') {
       try {
         console.warn('⚠️ Custom MONGODB_URI failed, attempting local MongoDB server...');
-        await mongoose.connect('mongodb://127.0.0.1:27017/pocketmentor', { serverSelectionTimeoutMS: 3000 });
+        await mongoose.connect('mongodb://127.0.0.1:27017/pocketmentor', {
+          serverSelectionTimeoutMS: 3000,
+          family: 4
+        });
         console.log('🍃 MongoDB: Connected to local MongoDB database (pocketmentor)');
         return true;
       } catch (localErr) {
