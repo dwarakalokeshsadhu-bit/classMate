@@ -464,62 +464,159 @@ export function chatMockTutor(notes, userMessage, history = [], mode = 'default'
  * Personalized Study Plan Generator
  */
 export function mockStudyPlan(notes, examDateStr, daysLeft = 5, weakTopics = []) {
-  const days = Math.max(1, Math.min(daysLeft || 5, 30));
+  const days = Math.max(1, Math.min(parseInt(daysLeft, 10) || 5, 30));
+
+  // Extract key concept names from notes if available for personalized day titles
+  const extractedTopics = [];
+  if (notes && typeof notes === 'string') {
+    const lines = notes.split('\n');
+    for (const line of lines) {
+      const trimmed = line.replace(/^[#*-•\s]+/, '').trim();
+      if (trimmed.length > 5 && trimmed.length < 40 && !trimmed.startsWith('http') && !trimmed.toLowerCase().includes('lecture')) {
+        extractedTopics.push(trimmed);
+        if (extractedTopics.length >= 6) break;
+      }
+    }
+  }
+
+  const primaryWeakness = weakTopics.length > 0 ? weakTopics[0] : (extractedTopics[0] || 'Core Principles');
+  const secondaryWeakness = weakTopics.length > 1 ? weakTopics[1] : (extractedTopics[1] || 'Applied Concepts');
 
   const planDays = [];
-  for (let i = 1; i <= days; i++) {
-    if (i === 1) {
-      planDays.push({
-        day: 1,
-        title: "Foundation & Terminology Sprint",
-        tasks: [
-          "Read 60-second rescue summary 2x",
-          "Master core flashcards (Cards 1-3)",
-          "Take baseline quiz to establish initial score"
-        ],
-        estimatedMinutes: 25
-      });
-    } else if (i === days) {
-      planDays.push({
-        day: i,
-        title: "Final Exam Simulation & Mastery Check",
-        tasks: [
-          "Timed Mock Exam Mode (100% pass goal)",
-          "Review Mistake Vault items until 0 errors remain",
-          "Read through Presentation Summary key takeaways"
-        ],
-        estimatedMinutes: 30
-      });
-    } else if (weakTopics.length > 0 && i === 2) {
-      planDays.push({
-        day: i,
-        title: `Weakness Triage: ${weakTopics[0] || 'Targeted Areas'}`,
-        tasks: [
-          `Review mistakes on ${weakTopics[0]}`,
-          "Ask AI Tutor to 'Explain in Detail' and generate examples",
-          "Complete targeted 5-question drill"
-        ],
-        estimatedMinutes: 20
-      });
-    } else {
-      planDays.push({
-        day: i,
-        title: `Spaced Repetition & Deep Application (Cycle ${i})`,
-        tasks: [
-          "Spaced flashcard review (flip without looking)",
-          "Adaptive quiz: aim for 85%+ on Medium & Hard questions",
-          "Identify and eliminate any Danger Zone answers"
-        ],
-        estimatedMinutes: 25
-      });
+
+  if (days === 1) {
+    planDays.push({
+      day: 1,
+      title: "Emergency 24-Hour High-Yield Sprint & Mastery Check",
+      tasks: [
+        "Read 60-second rescue summary 3x to lock in core invariants",
+        `Targeted drill on high-risk concepts: ${primaryWeakness}`,
+        "Review all flashcards with active recall (focus on Hard/Again)",
+        "Clear every item currently banked in the Mistake Vault",
+        "Take 1 Timed Mock Exam to establish final confidence"
+      ],
+      estimatedMinutes: 45
+    });
+  } else if (days === 2) {
+    planDays.push({
+      day: 1,
+      title: "Foundation Sprint & Weakness Triage",
+      tasks: [
+        "Read 60-second rescue summary and core definitions",
+        `Master foundational flashcards for ${primaryWeakness}`,
+        "Complete baseline quiz attempt to detect remaining danger zones"
+      ],
+      estimatedMinutes: 30
+    });
+    planDays.push({
+      day: 2,
+      title: "Mistake Elimination & Final Mock Simulation",
+      tasks: [
+        "Review all Mistake Vault items until 0 mistakes remain",
+        "5-minute Timed Mock Exam Mode (aim for 90%+ pass rate)",
+        "Final rapid skim of high-yield key takeaways and formula sheet"
+      ],
+      estimatedMinutes: 35
+    });
+  } else if (days === 3) {
+    planDays.push({
+      day: 1,
+      title: "Core Foundation & Terminology Sprint",
+      tasks: [
+        "Read 60-second rescue summary 2x",
+        "Master foundational definitions and term cards",
+        "Baseline quiz to gauge starting score and identify danger zones"
+      ],
+      estimatedMinutes: 25
+    });
+    planDays.push({
+      day: 2,
+      title: `Weakness Deep-Dive: ${primaryWeakness}`,
+      tasks: [
+        `Review mistakes and distractor traps for ${primaryWeakness}`,
+        "Ask AI Tutor to 'Explain in Detail' and provide concrete real-world examples",
+        "Complete targeted 5-question adaptive drill"
+      ],
+      estimatedMinutes: 30
+    });
+    planDays.push({
+      day: 3,
+      title: "Full Mock Exam & Final Confidence Check",
+      tasks: [
+        "Timed Mock Exam Mode (simulate exam conditions)",
+        "Review any remaining Mistake Vault items",
+        "Final skim of 60-second rescue summary"
+      ],
+      estimatedMinutes: 25
+    });
+  } else {
+    // 4 to 30 days progression
+    const themes = [
+      { title: "Core Foundation & Terminology Sprint", minutes: 25, tasks: ["Read 60-second rescue summary 2x", "Master core terminology & definitions", "Complete baseline quiz attempt to map strengths"] },
+      { title: `Targeted Weakness Triage: ${primaryWeakness}`, minutes: 30, tasks: [`Review mistakes on ${primaryWeakness}`, "Ask AI Tutor to 'Explain Simply' and draw concept diagram", "Complete targeted 5-question drill on missed concepts"] },
+      { title: "Active Recall Flashcard Sprint", minutes: 25, tasks: ["Review all flashcards with Leitner spaced repetition", "Filter deck for 'Hard' cards and repeat until fluent", "Use audio speech read-aloud to reinforce verbal memory"] },
+      { title: `Secondary Focus & Application: ${secondaryWeakness}`, minutes: 25, tasks: [`Test harder question variations on ${secondaryWeakness}`, "Eliminate any lingering 'Danger Zone' high-confidence errors", "Verify key definitions with 100% precision"] },
+      { title: "Adaptive Quiz & Distractor Trap Evasion", minutes: 30, tasks: ["Take adaptive quiz aiming for 90%+ on Hard questions", "Study the explanations for incorrect distractors", "Bank new mistakes directly into the Mistake Vault"] },
+      { title: "Mistake Vault Liquidation & Speed Drill", minutes: 25, tasks: ["Drill all banked errors until mistake counter hits zero", "Review presentation slides for structured concept hierarchy", "Test self-explanation on complex multi-step processes"] },
+      { title: "Mid-Term Knowledge Consolidation", minutes: 30, tasks: ["Comprehensive flashcard sweep across all saved topics", "Verify confidence vs. correctness 2x2 matrix calibration", "Review summary notes without looking at answers"] }
+    ];
+
+    for (let i = 1; i <= days; i++) {
+      if (i === days) {
+        // Final Day
+        planDays.push({
+          day: i,
+          title: "Final Exam Simulation & Readiness Confirmation",
+          tasks: [
+            "5-minute Timed Mock Exam Mode under strict exam conditions",
+            "Clear all remaining Mistake Vault items",
+            "Final confidence review of 60-second rescue summary and formulas"
+          ],
+          estimatedMinutes: 30
+        });
+      } else if (i <= themes.length) {
+        const theme = themes[i - 1];
+        planDays.push({
+          day: i,
+          title: theme.title,
+          tasks: theme.tasks,
+          estimatedMinutes: theme.minutes
+        });
+      } else {
+        // Extended days (8 to 30)
+        const cycleNum = Math.floor((i - 1) / 5) + 1;
+        const topicRef = extractedTopics[(i - 1) % extractedTopics.length] || `Module ${i}`;
+        planDays.push({
+          day: i,
+          title: `Spaced Repetition & Deep Application: ${topicRef}`,
+          tasks: [
+            `Active recall review for ${topicRef}`,
+            "Adaptive quiz with hard difficulty variations",
+            "Consult AI Tutor for edge-case questions and common exam traps"
+          ],
+          estimatedMinutes: 20
+        });
+      }
     }
+  }
+
+  let recommendation;
+  if (days <= 2) {
+    recommendation = "⚡ Emergency 24–48h High-Yield Cram: Prioritize the 60-Second Rescue Summary and Mistake Vault drills over passive reading.";
+  } else if (days <= 5) {
+    recommendation = "🎯 Accelerated Sprint: Spend 25–30 focused minutes per day using active recall rather than passive rereading.";
+  } else if (days <= 14) {
+    recommendation = "🌱 Optimal Spaced Repetition: Spend 20–25 minutes daily cycling flashcards and testing adaptive quizzes.";
+  } else {
+    recommendation = "🏆 Paced Mastery: Spend 15–20 minutes daily across structured revision cycles to cement permanent conceptual retention.";
   }
 
   return {
     examDate: examDateStr || "Upcoming Exam",
     daysRemaining: days,
-    totalRevisionMinutes: days * 25,
+    totalRevisionMinutes: planDays.reduce((acc, d) => acc + (d.estimatedMinutes || 25), 0),
     schedule: planDays,
-    recommendation: "Spend 20-25 focused minutes per day using active recall rather than passive rereading."
+    recommendation
   };
 }
+

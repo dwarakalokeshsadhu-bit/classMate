@@ -1970,78 +1970,162 @@ body {
 .study-plan-container {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 22px;
 }
 
 .countdown-banner {
-  background: linear-gradient(135deg, #1e1b4b, #312e81);
-  color: white;
+  background: #18201b;
+  border: 1px solid #28362b;
+  color: #ffffff;
   border-radius: var(--radius-xl);
-  padding: 24px;
+  padding: 26px 28px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 20px;
+  box-shadow: 0 12px 30px rgba(24, 32, 27, 0.22);
+}
+
+.countdown-info {
+  flex: 1;
+  min-width: 300px;
 }
 
 .countdown-tag {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   font-weight: 800;
-  color: #a5b4fc;
+  color: #96a78d;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+
+.countdown-title {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.015em;
+  margin-bottom: 8px;
+}
+
+.exam-date-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0 14px;
+  flex-wrap: wrap;
+}
+
+.exam-date-picker {
+  background: #243027;
+  border: 1.5px solid #485a4d;
+  color: #ffffff;
+  padding: 9px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color-scheme: dark;
+  outline: none;
+  font-family: inherit;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.exam-date-picker:focus {
+  border-color: #96a78d;
+  box-shadow: 0 0 0 3px rgba(150, 167, 141, 0.3);
+}
+
+.exam-date-hint {
+  font-size: 0.82rem;
+  color: #b4c5ac;
+  font-weight: 600;
+}
+
+.exam-preset-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.preset-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #8fa091;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
-.countdown-title {
-  font-size: 1.25rem;
-  font-weight: 800;
-  margin-top: 4px;
+.preset-pill {
+  background: rgba(43, 56, 46, 0.8);
+  border: 1px solid rgba(150, 167, 141, 0.35);
+  color: #d1dfcf;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: inherit;
 }
 
-.exam-date-picker {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  font-family: inherit;
-  font-size: 0.85rem;
+.preset-pill:hover {
+  background: #314235;
+  color: #ffffff;
+  border-color: #96a78d;
+  transform: translateY(-1px);
+}
+
+.preset-pill.active {
+  background: #96a78d;
+  color: #18201b;
+  border-color: #96a78d;
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(150, 167, 141, 0.35);
 }
 
 .countdown-tiles {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
 }
 
 .countdown-tile {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: var(--radius-md);
-  padding: 10px 16px;
+  background: rgba(36, 48, 39, 0.75);
+  border: 1.5px solid rgba(150, 167, 141, 0.35);
+  border-radius: 16px;
+  padding: 12px 18px;
   text-align: center;
-  min-width: 65px;
+  min-width: 74px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .tile-num {
   display: block;
-  font-size: 1.8rem;
+  font-size: 2.1rem;
   font-weight: 900;
   line-height: 1;
+  color: #ffffff;
 }
 
 .tile-label {
-  font-size: 0.68rem;
+  font-size: 0.7rem;
+  font-weight: 800;
   text-transform: uppercase;
-  color: #c7d2fe;
+  letter-spacing: 0.06em;
+  color: #b4c5ac;
+  margin-top: 4px;
 }
 
 .plan-loading {
   text-align: center;
-  padding: 36px 0;
+  padding: 48px 0;
   color: var(--text-muted);
 }
 
@@ -2049,114 +2133,154 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #f8fafc;
-  border: 1px solid var(--border);
-  padding: 12px 16px;
-  border-radius: var(--radius-md);
-  margin-bottom: 16px;
+  background: #edf3eb;
+  border: 1.5px solid #d2ded0;
+  padding: 14px 18px;
+  border-radius: 14px;
+  margin-bottom: 18px;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 12px;
 }
 
 .plan-time-badge {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #ffffff;
+  background: #18201b;
+  padding: 5px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.plan-progress-pill {
   font-size: 0.78rem;
   font-weight: 700;
-  color: var(--primary);
-  background: var(--primary-light);
-  padding: 3px 8px;
-  border-radius: 9999px;
+  color: #586a51;
+  background: #ffffff;
+  border: 1px solid #d2ded0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
 }
 
 .days-timeline {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .timeline-day-card {
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 16px;
+  background: #ffffff;
+  border: 1.5px solid var(--border);
+  border-radius: 18px;
+  padding: 20px 22px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.timeline-day-card:hover {
+  border-color: #96a78d;
+  box-shadow: 0 8px 20px rgba(150, 167, 141, 0.16);
+}
+
+.timeline-day-card.day-completed {
+  border-color: #b4c5ac;
+  background: #fafdf9;
 }
 
 .day-card-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 .day-number {
-  font-size: 0.75rem;
+  font-size: 0.76rem;
   font-weight: 800;
-  color: white;
-  background: var(--primary);
-  padding: 2px 7px;
-  border-radius: 9999px;
+  color: #ffffff;
+  background: #18201b;
+  padding: 3px 10px;
+  border-radius: 999px;
 }
 
 .day-title {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #0f172a;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #18201b;
   flex: 1;
 }
 
 .day-duration {
-  font-size: 0.75rem;
-  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #5d6d61;
+  background: #f0f4ee;
+  padding: 3px 9px;
+  border-radius: 999px;
 }
 
 .day-tasks-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .day-task-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-alt);
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fbfdfa;
+  border: 1px solid #e2ece0;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.16s ease;
 }
 
 .day-task-item:hover {
-  background: #f0fdf4;
+  background: #edf3eb;
+  border-color: #96a78d;
+  transform: translateX(3px);
 }
 
 .day-task-item.task-done {
-  background: #ecfdf5;
-  opacity: 0.7;
+  background: #f0f4ee;
+  border-color: #d2ded0;
+  opacity: 0.75;
 }
 
 .task-checkbox {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  border: 1.5px solid #10b981;
-  background: white;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid #96a78d;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
 }
 
 .task-done .task-checkbox {
-  background: #10b981;
+  background: #586a51;
+  border-color: #586a51;
 }
 
 .task-text {
-  font-size: 0.85rem;
-  color: var(--text-main);
+  font-size: 0.88rem;
+  color: #18201b;
+  font-weight: 500;
+  line-height: 1.45;
 }
 
 .task-done .task-text {
   text-decoration: line-through;
+  color: #7d8f74;
 }
+
 
 /* Bottom session actions */
 .session-actions {
