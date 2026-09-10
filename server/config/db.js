@@ -5,23 +5,28 @@ import mongoose from 'mongoose';
  * Gracefully operates in memory/fallback mode if MONGODB_URI is omitted.
  */
 export async function connectDB() {
-  const uri = process.env.MONGODB_URI;
-
-  if (!uri || uri.includes('<password>') || uri.includes('your_mongodb_uri')) {
-    console.log('🍃 MongoDB Atlas: Not configured (running in local session mode)');
-    return false;
-  }
+  const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/pocketmentor';
 
   try {
     mongoose.set('strictQuery', false);
     await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 5000,
-      autoIndex: false // Don't enforce unique indexes
+      serverSelectionTimeoutMS: 5000
     });
-    console.log('🍃 MongoDB Atlas: Connected successfully to cluster');
+    console.log(`🍃 MongoDB: Connected successfully to ${uri.includes('127.0.0.1') ? 'local MongoDB database (pocketmentor)' : 'MongoDB cluster'}`);
     return true;
   } catch (error) {
-    console.warn('⚠️ MongoDB Atlas Connection Warning:', error.message);
+    // If remote or custom URI failed, try local MongoDB fallback
+    if (uri !== 'mongodb://127.0.0.1:27017/pocketmentor') {
+      try {
+        console.warn('⚠️ Custom MONGODB_URI failed, attempting local MongoDB server...');
+        await mongoose.connect('mongodb://127.0.0.1:27017/pocketmentor', { serverSelectionTimeoutMS: 3000 });
+        console.log('🍃 MongoDB: Connected to local MongoDB database (pocketmentor)');
+        return true;
+      } catch (localErr) {
+        console.warn('⚠️ Local MongoDB connection also failed:', localErr.message);
+      }
+    }
+    console.warn('⚠️ MongoDB Connection Warning:', error.message);
     console.log('⚡ Continuing in resilient local fallback mode');
     return false;
   }

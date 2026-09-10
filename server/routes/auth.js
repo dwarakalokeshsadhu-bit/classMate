@@ -5,13 +5,13 @@ import { User } from '../models/User.js';
 
 export const authRouter = express.Router();
 
-// Resilient in-memory fallback cache for local dev / offline cluster mode
+// Fallback in-memory store if DB is temporarily disconnected
 const inMemoryUsers = [];
 
 /**
  * POST /api/auth/register
- * Registers a new student account (accepts existing/same email without error)
- * Stores email, hashed passcode/password, and academic profile
+ * Registers a new student account in MongoDB.
+ * Rejects duplicate emails with a 409 status error.
  */
 authRouter.post('/register', async (req, res) => {
   try {
@@ -21,12 +21,37 @@ authRouter.post('/register', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Name and email are required.' });
     }
 
-    const rawPasscode = passcode || password || 'student123';
+    const normalizedEmail = email.trim().toLowerCase();
+    const rawPasscode = passcode || password;
+
+    if (!rawPasscode || rawPasscode.length < 4) {
+      return res.status(400).json({ success: false, error: 'Passcode must be at least 4 characters.' });
+    }
+
+    // Check if account already exists in MongoDB
+    if (mongoose.connection.readyState === 1) {
+      const existingUser = await User.findOne({ email: normalizedEmail });
+      if (existingUser) {
+        return res.status(409).json({
+          success: false,
+          error: `An account with ${normalizedEmail} already exists. Please Sign In with your passcode.`
+        });
+      }
+    } else {
+      const existing = inMemoryUsers.find(u => u.email === normalizedEmail);
+      if (existing) {
+        return res.status(409).json({
+          success: false,
+          error: `An account with ${normalizedEmail} already exists. Please Sign In with your passcode.`
+        });
+      }
+    }
+
     const hashedPasscode = await bcrypt.hash(rawPasscode, 10);
 
     const userData = {
       name: name.trim(),
-      email: email.trim().toLowerCase(),
+      email: normalizedEmail,
       passcode: hashedPasscode,
       password: hashedPasscode,
       branch: branch || 'Computer Science & Engineering',
@@ -35,36 +60,53 @@ authRouter.post('/register', async (req, res) => {
       role: 'Student',
       avatar: avatar || '/avatars/avatar-1.png',
       avatarInitial: name.trim()[0].toUpperCase(),
-      loggedInAt: new Date().toISOString()
+      createdAt: new Date()
     };
 
-    // If MongoDB Atlas is connected, save into cluster
+    let savedUser = null;
+
     if (mongoose.connection.readyState === 1) {
       try {
         const newUser = new User(userData);
         await newUser.save();
-        userData._id = newUser._id;
+        savedUser = newUser.toObject();
       } catch (dbErr) {
-        console.warn('MongoDB save warning in /register:', dbErr.message);
-        // If MongoDB throws due to legacy unique index, handle gracefully
-        userData._id = 'user_' + Date.now();
+        console.error('MongoDB save error in /register:', dbErr.message);
+        if (dbErr.code === 11000) {
+          return res.status(409).json({
+            success: false,
+            error: `An account with ${normalizedEmail} already exists in database. Please Sign In.`
+          });
+        }
       }
-    } else {
-      userData._id = 'user_' + Date.now();
     }
 
-    // Keep in inMemoryUsers as fallback
-    inMemoryUsers.push({ ...userData, rawPasscode });
+    if (!savedUser) {
+      savedUser = {
+        _id: 'user_' + Date.now(),
+        ...userData
+      };
+    }
 
-    // Do not return hashed password in response payload
-    const sanitizedUser = { ...userData };
-    delete sanitizedUser.passcode;
-    delete sanitizedUser.password;
+    inMemoryUsers.push({ ...savedUser, rawPasscode });
+
+    const userPayload = {
+      _id: savedUser._id,
+      name: savedUser.name,
+      email: savedUser.email,
+      branch: savedUser.branch,
+      rollNo: savedUser.rollNo,
+      college: savedUser.college,
+      role: savedUser.role,
+      avatar: savedUser.avatar,
+      avatarInitial: savedUser.avatarInitial,
+      loggedInAt: new Date().toISOString()
+    };
 
     return res.status(201).json({
       success: true,
-      message: 'Account created successfully in MongoDB cluster',
-      user: sanitizedUser
+      message: 'Account registered and credentials saved to MongoDB database',
+      user: userPayload
     });
   } catch (err) {
     console.error('Registration error:', err);
@@ -74,8 +116,7 @@ authRouter.post('/register', async (req, res) => {
 
 /**
  * POST /api/auth/login
- * Logs in a user by email and passcode/password.
- * Supports multiple accounts with same email by matching passcode.
+ * Verifies credentials against MongoDB database.
  */
 authRouter.post('/login', async (req, res) => {
   try {
@@ -88,82 +129,55 @@ authRouter.post('/login', async (req, res) => {
     const rawPasscode = passcode || password;
     const normalizedEmail = email.trim().toLowerCase();
 
-    let matchedUser = null;
+    let foundUser = null;
 
     if (mongoose.connection.readyState === 1) {
       try {
-        // Find all registered accounts with this email
-        const candidates = await User.find({ email: normalizedEmail }).sort({ createdAt: -1 });
-
-        if (candidates && candidates.length > 0) {
-          if (rawPasscode) {
-            // Check candidates to find matching passcode
-            for (const candidate of candidates) {
-              const hashToCompare = candidate.passcode || candidate.password;
-              if (hashToCompare) {
-                const isMatch = await bcrypt.compare(rawPasscode, hashToCompare).catch(() => false);
-                if (isMatch) {
-                  matchedUser = candidate;
-                  break;
-                }
-              }
-            }
-          }
-          // If no passcode matched or no passcode given, take the latest matching account
-          if (!matchedUser && candidates.length > 0) {
-            matchedUser = candidates[0];
-          }
-        }
+        foundUser = await User.findOne({ email: normalizedEmail });
       } catch (dbErr) {
-        console.warn('MongoDB find error in /login:', dbErr.message);
+        console.warn('MongoDB query error in /login:', dbErr.message);
       }
     }
 
-    // Check in-memory fallback if not found in DB
-    if (!matchedUser && inMemoryUsers.length > 0) {
-      const candidates = inMemoryUsers.filter(u => u.email === normalizedEmail);
-      if (rawPasscode && candidates.length > 0) {
-        for (const candidate of candidates) {
-          if (candidate.rawPasscode === rawPasscode) {
-            matchedUser = candidate;
-            break;
-          }
-        }
-      }
-      if (!matchedUser && candidates.length > 0) {
-        matchedUser = candidates[candidates.length - 1];
+    if (!foundUser) {
+      foundUser = inMemoryUsers.find(u => u.email === normalizedEmail);
+    }
+
+    if (!foundUser) {
+      return res.status(404).json({
+        success: false,
+        error: `No account registered with ${normalizedEmail}. Please click 'Create Account' first.`
+      });
+    }
+
+    // Verify hashed passcode
+    if (rawPasscode && (foundUser.passcode || foundUser.password)) {
+      const hashToCompare = foundUser.passcode || foundUser.password;
+      const isMatch = await bcrypt.compare(rawPasscode, hashToCompare).catch(() => false);
+      if (!isMatch && foundUser.rawPasscode !== rawPasscode) {
+        return res.status(401).json({
+          success: false,
+          error: 'Incorrect passcode. Please check your credentials and try again.'
+        });
       }
     }
 
-    const guessedName = normalizedEmail.split('@')[0].replace(/[._-]/g, ' ');
-    const formattedName = guessedName.charAt(0).toUpperCase() + guessedName.slice(1);
-
-    const userPayload = matchedUser ? {
-      _id: matchedUser._id,
-      name: matchedUser.name,
-      email: matchedUser.email,
-      branch: matchedUser.branch || 'Computer Science & Engineering',
-      rollNo: matchedUser.rollNo || '24EG112B25',
-      college: matchedUser.college || 'Anurag University',
-      role: matchedUser.role || 'Student',
-      avatar: matchedUser.avatar || '/avatars/avatar-1.png',
-      avatarInitial: (matchedUser.name?.[0] || 'S').toUpperCase(),
-      loggedInAt: new Date().toISOString()
-    } : {
-      name: formattedName || 'Student',
-      email: normalizedEmail,
-      branch: 'Computer Science & Engineering',
-      rollNo: '24EG112B25',
-      college: 'Anurag University',
-      role: 'Student',
-      avatar: '/avatars/avatar-1.png',
-      avatarInitial: (formattedName[0] || 'S').toUpperCase(),
+    const userPayload = {
+      _id: foundUser._id,
+      name: foundUser.name,
+      email: foundUser.email,
+      branch: foundUser.branch || 'Computer Science & Engineering',
+      rollNo: foundUser.rollNo || '24EG112B25',
+      college: foundUser.college || 'Anurag University',
+      role: foundUser.role || 'Student',
+      avatar: foundUser.avatar || '/avatars/avatar-1.png',
+      avatarInitial: (foundUser.name?.[0] || 'S').toUpperCase(),
       loggedInAt: new Date().toISOString()
     };
 
     return res.json({
       success: true,
-      message: 'Logged in successfully',
+      message: 'Authenticated successfully from MongoDB database',
       user: userPayload
     });
   } catch (err) {

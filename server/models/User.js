@@ -11,7 +11,7 @@ const UserSchema = new mongoose.Schema({
     required: true,
     trim: true,
     lowercase: true,
-    unique: false, // Explicitly non-unique to allow multiple registrations with the same email
+    unique: true,
     index: true
   },
   passcode: {

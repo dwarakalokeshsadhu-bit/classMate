@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   MessageSquare, Send, Bot, User, Sparkles, Minus,
-  Maximize2, X, Mic, MicOff, Loader2, Lightbulb
+  Maximize2, Minimize2, X, Mic, MicOff, Loader2, Lightbulb, ExternalLink
 } from 'lucide-react';
 import { apiUrl } from '../utils/api.js';
 
@@ -11,6 +11,7 @@ export default function FloatingTutorWidget({
   onOpenFullTutor
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -100,34 +101,48 @@ export default function FloatingTutorWidget({
   }
 
   return (
-    <div className="floating-tutor-dock">
+    <div className={`floating-tutor-dock ${isMaximized ? 'maximized' : ''}`}>
       {/* Header */}
-      <div className="tutor-dock-header" onClick={() => setIsOpen(false)}>
+      <div className="tutor-dock-header">
         <div className="tutor-dock-title">
           <Bot size={18} color="var(--primary)" />
           <span>Class Mate Tutor</span>
-        </div>
-        <div className="tutor-dock-controls" onClick={(e) => e.stopPropagation()}>
-          {onOpenFullTutor && (
-            <button
-              type="button"
-              className="tutor-dock-icon-btn"
-              onClick={() => {
-                setIsOpen(false);
-                onOpenFullTutor();
-              }}
-              title="Open full tutor tab"
-            >
-              <Maximize2 size={14} />
-            </button>
+          {isMaximized && (
+            <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: 4, background: 'rgba(150, 167, 141, 0.25)', color: '#96A78D' }}>
+              Expanded
+            </span>
           )}
+        </div>
+        <div className="tutor-dock-controls">
           <button
             type="button"
             className="tutor-dock-icon-btn"
-            onClick={() => setIsOpen(false)}
-            title="Minimize"
+            onClick={() => setIsMaximized(!isMaximized)}
+            title={isMaximized ? "Restore compact size" : "Maximize chat window"}
           >
-            <Minus size={15} />
+            {isMaximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+          </button>
+          <button
+            type="button"
+            className="tutor-dock-icon-btn"
+            onClick={() => {
+              setIsMaximized(false);
+              setIsOpen(false);
+            }}
+            title="Minimize chat to bottom dock"
+          >
+            <Minus size={16} />
+          </button>
+          <button
+            type="button"
+            className="tutor-dock-icon-btn"
+            onClick={() => {
+              setIsMaximized(false);
+              setIsOpen(false);
+            }}
+            title="Close"
+          >
+            <X size={15} />
           </button>
         </div>
       </div>
