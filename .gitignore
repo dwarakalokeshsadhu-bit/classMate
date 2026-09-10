@@ -4,8 +4,11 @@ dist/
 build/
 */dist/
 .env
-.env.*
+.env.local
+.env.*.local
 *.env
+!.env.example
+!*/.env.example
 *.log
 .vscode/
 .idea/

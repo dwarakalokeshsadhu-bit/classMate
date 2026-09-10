@@ -1,0 +1,31 @@
+{
+  "name": "class-mate",
+  "version": "1.0.0",
+  "description": "Class Mate — Learning that adapts to you. Smart AI study companion and active recall engine.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "install:all": "npm --prefix client install && npm --prefix server install",
+    "build": "npm --prefix client install && npm --prefix client run build && npm --prefix server install",
+    "start": "node server/index.js",
+    "server": "node server/index.js",
+    "client": "npm --prefix client run dev",
+    "dev": "npm --prefix client run dev",
+    "test": "npm --prefix server test"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "education",
+    "ai-tutor",
+    "study-aid",
+    "active-recall",
+    "spaced-repetition",
+    "flashcards",
+    "quiz",
+    "gemini"
+  ],
+  "author": "Class Mate Team",
+  "license": "MIT"
+}

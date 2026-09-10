@@ -1,7 +1,7 @@
 {
-  "name": "pocket-mentor-server",
+  "name": "class-mate-server",
   "version": "1.0.0",
-  "description": "Backend API for Pocket Mentor - AU.28 Hackathon-01 Team 07",
+  "description": "Backend API for Class Mate — Learning that adapts to you",
   "main": "index.js",
   "type": "module",
   "scripts": {

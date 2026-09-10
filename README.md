@@ -31,24 +31,40 @@
 
 ## 🚀 Quickstart: Running on Localhost
 
-### 1. Start Backend Server (Port 5000)
+### Single-Command Full-Stack (Root)
+```bash
+npm run build    # Compiles client production bundle
+npm start        # Launches full-stack server on http://localhost:5000
+```
+
+### Separate Client & Server Development
+**1. Start Backend Server (Port 5000)**:
 ```powershell
-cd "c:\24EG112B25\Pocket Mentor\server"
+cd server
 npm.cmd install
-npm.cmd test         # Runs 8 integration tests across all endpoints
+npm.cmd test         # Runs 8 integration test suites
 npm.cmd start        # Starts Express on http://localhost:5000
 ```
-> *Tip: To enable live Gemini AI generation, add your `GEMINI_API_KEY` to `server/.env`. If omitted, Class Mate runs using its smart demo fallback engine.*
+> *Tip: To enable live Gemini AI generation, add your `GEMINI_API_KEY` to `server/.env`. If omitted, Class Mate runs using its built-in smart demo engine.*
 
-### 2. Start Frontend Client (Port 5173)
+**2. Start Frontend Dev Client (Port 5173)**:
 ```powershell
-cd "c:\24EG112B25\Pocket Mentor\client"
+cd client
 npm.cmd install
-npm.cmd run build    # Verifies production bundle build
-npm.cmd run dev      # Starts Vite dev server on http://localhost:5173
+npm.cmd run dev      # Starts Vite dev server with proxy on http://localhost:5173
 ```
 
-Open your browser at **`http://localhost:5173`**.
+---
+
+## 🌐 Production Deployment
+
+Class Mate is deployment-ready for **Render**, **Railway**, **Vercel**, **Docker**, and cloud container services.
+
+- **Full-Stack on Render (1-Click)**: Connect repo, set build command `npm run build` and start command `npm start`. (Blueprint included: `render.yaml`).
+- **Docker Container**: Multi-stage production `Dockerfile` included (`docker build -t class-mate .`).
+- **Vercel Frontend**: Configuration included (`vercel.json` and `client/vercel.json`).
+
+📖 **Full Step-by-Step Instructions**: See [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md).
 
 ---
 
