@@ -65,11 +65,11 @@ export default function AuthLandingPage({ onLogin }) {
         const response = await fetch(apiUrl('/api/auth/register'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             name: name.trim(),
             email: email.trim(),
             passcode: password,
-            password: password,
             branch
           })
         });
@@ -105,10 +105,10 @@ export default function AuthLandingPage({ onLogin }) {
         const response = await fetch(apiUrl('/api/auth/login'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             email: email.trim(),
-            passcode: password,
-            password: password
+            passcode: password
           })
         });
 

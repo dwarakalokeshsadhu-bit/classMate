@@ -16,11 +16,8 @@ const UserSchema = new mongoose.Schema({
   },
   passcode: {
     type: String,
-    required: false
-  },
-  password: {
-    type: String,
-    required: false
+    required: true,
+    minlength: 4
   },
   branch: {
     type: String,

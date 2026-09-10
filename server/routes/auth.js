@@ -1,10 +1,56 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 import { User } from '../models/User.js';
 import { connectDB } from '../config/db.js';
+import { requireAuth } from '../middleware/auth.js';
 
 export const authRouter = express.Router();
+
+/**
+ * Rate limiter on authentication routes to prevent brute-force attacks.
+ * Limits each IP to 15 attempts per 15-minute window.
+ */
+export const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: 'Too many authentication attempts from this IP. Please try again after 15 minutes.'
+  }
+});
+
+/**
+ * Generates a signed JWT session token with 7-day expiration.
+ */
+function generateToken(user) {
+  const secret = process.env.JWT_SECRET || 'classmate_fallback_secret_key_au28';
+  return jwt.sign(
+    {
+      userId: user._id.toString(),
+      email: user.email,
+      role: user.role || 'Student'
+    },
+    secret,
+    { expiresIn: '7d' }
+  );
+}
+
+/**
+ * Sets secure httpOnly session cookie for cross-request auth and XSS protection.
+ */
+function setAuthCookie(res, token) {
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
+  });
+}
 
 /**
  * Ensures MongoDB is connected before running authentication queries.
@@ -19,9 +65,9 @@ async function ensureDbConnected() {
 /**
  * POST /api/auth/register
  * Registers a new student account in MongoDB.
- * Rejects duplicate emails with a 409 status error.
+ * Signs JWT token, sets httpOnly cookie, and rejects duplicate emails.
  */
-authRouter.post('/register', async (req, res) => {
+authRouter.post('/register', authLimiter, async (req, res) => {
   try {
     const { name, email, passcode, password, branch, rollNo, college, avatar } = req.body;
 
@@ -59,7 +105,6 @@ authRouter.post('/register', async (req, res) => {
       name: name.trim(),
       email: normalizedEmail,
       passcode: hashedPasscode,
-      password: hashedPasscode,
       branch: branch || 'Computer Science & Engineering',
       rollNo: rollNo || '24EG112B25',
       college: college || 'Anurag University',
@@ -88,6 +133,10 @@ authRouter.post('/register', async (req, res) => {
       });
     }
 
+    // Generate JWT and set httpOnly session cookie
+    const token = generateToken(savedUser);
+    setAuthCookie(res, token);
+
     const userPayload = {
       _id: savedUser._id,
       name: savedUser.name,
@@ -104,6 +153,7 @@ authRouter.post('/register', async (req, res) => {
     return res.status(201).json({
       success: true,
       message: 'Account registered and credentials saved to MongoDB database',
+      token,
       user: userPayload
     });
   } catch (err) {
@@ -115,8 +165,9 @@ authRouter.post('/register', async (req, res) => {
 /**
  * POST /api/auth/login
  * Verifies credentials against MongoDB database.
+ * Signs JWT token and sets httpOnly cookie.
  */
-authRouter.post('/login', async (req, res) => {
+authRouter.post('/login', authLimiter, async (req, res) => {
   try {
     const { email, passcode, password } = req.body;
 
@@ -145,16 +196,24 @@ authRouter.post('/login', async (req, res) => {
     }
 
     // Verify hashed passcode
-    if (rawPasscode && (foundUser.passcode || foundUser.password)) {
-      const hashToCompare = foundUser.passcode || foundUser.password;
-      const isMatch = await bcrypt.compare(rawPasscode, hashToCompare).catch(() => false);
-      if (!isMatch) {
-        return res.status(401).json({
-          success: false,
-          error: 'Incorrect passcode. Please check your credentials and try again.'
-        });
-      }
+    if (!rawPasscode || !foundUser.passcode) {
+      return res.status(401).json({
+        success: false,
+        error: 'Passcode is required.'
+      });
     }
+
+    const isMatch = await bcrypt.compare(rawPasscode, foundUser.passcode).catch(() => false);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        error: 'Incorrect passcode. Please check your credentials and try again.'
+      });
+    }
+
+    // Generate JWT and set httpOnly session cookie
+    const token = generateToken(foundUser);
+    setAuthCookie(res, token);
 
     const userPayload = {
       _id: foundUser._id,
@@ -172,6 +231,7 @@ authRouter.post('/login', async (req, res) => {
     return res.json({
       success: true,
       message: 'Authenticated successfully from MongoDB database',
+      token,
       user: userPayload
     });
   } catch (err) {
@@ -179,3 +239,50 @@ authRouter.post('/login', async (req, res) => {
     return res.status(500).json({ success: false, error: 'Could not log in.' });
   }
 });
+
+/**
+ * POST /api/auth/logout
+ * Clears the httpOnly session cookie.
+ */
+authRouter.post('/logout', (req, res) => {
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+  });
+  return res.json({
+    success: true,
+    message: 'Logged out successfully.'
+  });
+});
+
+/**
+ * GET /api/auth/me
+ * Returns current authenticated user profile using verified JWT session.
+ */
+authRouter.get('/me', requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select('-passcode').lean();
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User account not found.' });
+    }
+    return res.json({
+      success: true,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        branch: user.branch,
+        rollNo: user.rollNo,
+        college: user.college,
+        role: user.role,
+        avatar: user.avatar,
+        avatarInitial: (user.name?.[0] || 'S').toUpperCase()
+      }
+    });
+  } catch (err) {
+    console.error('/me session fetch error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to retrieve session profile.' });
+  }
+});
+

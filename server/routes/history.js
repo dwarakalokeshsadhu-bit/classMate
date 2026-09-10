@@ -1,26 +1,32 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import { NoteHistory } from '../models/NoteHistory.js';
+import { requireAuth } from '../middleware/auth.js';
 
 export const historyRouter = express.Router();
+
+// Require valid JWT authentication across all history endpoints
+historyRouter.use(requireAuth);
 
 // Resilient in-memory fallback store for offline/demo operation
 const inMemoryHistory = [];
 
 /**
  * POST /api/history
- * Saves a generated notes session and revision tools to history
+ * Saves a generated notes session and revision tools to history.
+ * Scoped to the authenticated student's session.
  */
 historyRouter.post('/', async (req, res) => {
   try {
-    const { email, subject, title, rawNotes, studyData } = req.body;
+    const { subject, title, rawNotes, studyData } = req.body;
+    const authenticatedEmail = req.user.email.trim().toLowerCase();
 
     if (!rawNotes || typeof rawNotes !== 'string') {
       return res.status(400).json({ success: false, error: 'Raw notes content is required.' });
     }
 
     const noteRecord = {
-      email: (email || 'student@college.edu').trim().toLowerCase(),
+      email: authenticatedEmail,
       subject: subject || 'General',
       title: title || studyData?.title || 'Class Lecture Notes',
       rawNotes: rawNotes.trim(),
@@ -67,17 +73,16 @@ historyRouter.post('/', async (req, res) => {
 
 /**
  * GET /api/history
- * Retrieves history of generated notes, optionally filtered by user email
+ * Retrieves history of generated notes for the authenticated student.
  */
 historyRouter.get('/', async (req, res) => {
   try {
-    const { email } = req.query;
+    const authenticatedEmail = req.user.email.trim().toLowerCase();
     let items = [];
 
     if (mongoose.connection.readyState === 1) {
       try {
-        const query = email ? { email: email.trim().toLowerCase() } : {};
-        items = await NoteHistory.find(query).sort({ createdAt: -1 }).limit(50).lean();
+        items = await NoteHistory.find({ email: authenticatedEmail }).sort({ createdAt: -1 }).limit(50).lean();
       } catch (dbErr) {
         console.warn('MongoDB history query warning:', dbErr.message);
       }
@@ -85,11 +90,7 @@ historyRouter.get('/', async (req, res) => {
 
     // If DB returned nothing or wasn't connected, check in-memory store
     if (!items || items.length === 0) {
-      if (email) {
-        items = inMemoryHistory.filter(h => h.email === email.trim().toLowerCase());
-      } else {
-        items = [...inMemoryHistory];
-      }
+      items = inMemoryHistory.filter(h => h.email === authenticatedEmail);
     }
 
     return res.json({
@@ -105,23 +106,24 @@ historyRouter.get('/', async (req, res) => {
 
 /**
  * DELETE /api/history/:id
- * Deletes a note history record by ID
+ * Deletes a note history record by ID if owned by the authenticated student.
  */
 historyRouter.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const authenticatedEmail = req.user.email.trim().toLowerCase();
 
     if (mongoose.connection.readyState === 1) {
       try {
         if (mongoose.Types.ObjectId.isValid(id)) {
-          await NoteHistory.findByIdAndDelete(id);
+          await NoteHistory.findOneAndDelete({ _id: id, email: authenticatedEmail });
         }
       } catch (dbErr) {
         console.warn('MongoDB delete warning:', dbErr.message);
       }
     }
 
-    const idx = inMemoryHistory.findIndex(h => String(h._id) === String(id));
+    const idx = inMemoryHistory.findIndex(h => String(h._id) === String(id) && h.email === authenticatedEmail);
     if (idx !== -1) {
       inMemoryHistory.splice(idx, 1);
     }
@@ -135,3 +137,4 @@ historyRouter.delete('/:id', async (req, res) => {
     return res.status(500).json({ success: false, error: 'Could not delete history item.' });
   }
 });
+

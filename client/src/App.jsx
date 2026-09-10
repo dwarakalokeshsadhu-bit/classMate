@@ -175,6 +175,12 @@ export default function App() {
     } catch (e) {
       console.warn('Could not clear user session:', e);
     }
+
+    // Clear server httpOnly cookie
+    fetch(apiUrl('/api/auth/logout'), {
+      method: 'POST',
+      credentials: 'include'
+    }).catch(() => {});
   };
 
   // Fetch online note history on user mount or change
@@ -184,7 +190,16 @@ export default function App() {
       return;
     }
 
-    fetch(apiUrl(`/api/history?email=${encodeURIComponent(currentUser.email)}`))
+    // Verify session validity
+    fetch(apiUrl('/api/auth/me'), { credentials: 'include' })
+      .then((res) => {
+        if (res.status === 401) {
+          handleLogout();
+        }
+      })
+      .catch(() => {});
+
+    fetch(apiUrl('/api/history'), { credentials: 'include' })
       .then((res) => res.json())
       .then((data) => {
         if (data.success && Array.isArray(data.items)) {
@@ -202,7 +217,6 @@ export default function App() {
   const saveToHistory = async (cleanText, generatedData, subject) => {
     const userEmail = currentUser?.email || 'student@college.edu';
     const historyPayload = {
-      email: userEmail,
       subject: subject || currentSubject,
       title: generatedData?.title || 'Class Lecture Notes',
       rawNotes: cleanText,
@@ -229,6 +243,7 @@ export default function App() {
       const res = await fetch(apiUrl('/api/history'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(historyPayload)
       });
       const data = await res.json();
@@ -275,7 +290,10 @@ export default function App() {
     });
 
     try {
-      await fetch(apiUrl(`/api/history/${id}`), { method: 'DELETE' });
+      await fetch(apiUrl(`/api/history/${id}`), {
+        method: 'DELETE',
+        credentials: 'include'
+      });
     } catch (e) {
       console.warn('Could not delete history item on server:', e);
     }
