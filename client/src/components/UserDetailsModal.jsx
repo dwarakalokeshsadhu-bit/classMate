@@ -80,8 +80,12 @@ export default function UserDetailsModal({
         {/* Profile Card Hero */}
         <div className="user-details-hero">
           <div className="user-details-avatar-wrap">
-            <div className="user-details-avatar">
-              {formData.name.trim()[0]?.toUpperCase() || 'U'}
+            <div className="user-details-avatar" style={{ overflow: 'hidden', padding: 0 }}>
+              <img
+                src={user?.avatar || "/avatar.png"}
+                alt={formData.name}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
             </div>
             <div className="user-details-online-dot" title="Online & Active" />
           </div>

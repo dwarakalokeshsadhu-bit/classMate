@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import mammoth from 'mammoth';
 import { sanitizeNotesInput, containsMojiboke } from '../utils/textSanitizer.js';
+import { apiUrl } from '../utils/api.js';
 import {
   Upload, Sparkles, Loader2, FileText, Lightbulb, Mic, MicOff,
   Image as ImageIcon, Wand2, FileCode, CheckCircle, AlertCircle
@@ -209,7 +210,7 @@ This will definitely be tested on the midterm!"`;
       const base64Data = typeof dataUrl === 'string' ? dataUrl.split(',')[1] : null;
 
       try {
-        const res = await fetch('/api/generate/ocr', {
+        const res = await fetch(apiUrl('/api/generate/ocr'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -240,7 +241,7 @@ This will definitely be tested on the midterm!"`;
     setIsCleaning(true);
 
     try {
-      const res = await fetch('/api/generate/clean', {
+      const res = await fetch(apiUrl('/api/generate/clean'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes })

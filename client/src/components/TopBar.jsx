@@ -169,8 +169,13 @@ export default function TopBar({
                 color: 'inherit'
               }}
             >
-              <div className="user-avatar-circle">
-                {currentUser.avatarInitial || 'S'}
+              <div className="user-avatar-circle" style={{ overflow: 'hidden', padding: 0 }}>
+                <img
+                  src={currentUser.avatar || "/avatar.png"}
+                  alt={currentUser.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
               </div>
               <span className="user-pill-name">{currentUser.name}</span>
             </button>

@@ -8,13 +8,17 @@ import AuthLandingPage from './components/AuthLandingPage.jsx';
 import StudyPlanModal from './components/StudyPlanModal.jsx';
 import UserDetailsModal from './components/UserDetailsModal.jsx';
 import { sanitizeNotesInput, containsMojiboke } from './utils/textSanitizer.js';
+import { apiUrl } from './utils/api.js';
 
 export default function App() {
   // Authentication & student profile
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const stored = localStorage.getItem('pm_user');
-      return stored ? JSON.parse(stored) : null;
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      if (!parsed.avatar) parsed.avatar = '/avatar.png';
+      return parsed;
     } catch (e) {
       return null;
     }
@@ -46,7 +50,7 @@ export default function App() {
 
   // Check backend health on mount and restore local persistence with auto-purge of corrupted decks
   useEffect(() => {
-    fetch('/api/health')
+    fetch(apiUrl('/api/health'))
       .then((res) => res.json())
       .then((data) => setServerStatus(data))
       .catch((err) => console.warn('Could not reach backend health check:', err));
@@ -210,7 +214,7 @@ export default function App() {
     }
 
     try {
-      const response = await fetch('/api/generate', {
+      const response = await fetch(apiUrl('/api/generate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes: cleanNotes, mode })

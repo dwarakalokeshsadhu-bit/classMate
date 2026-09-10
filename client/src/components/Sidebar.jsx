@@ -271,20 +271,20 @@ export default function Sidebar({
                   }}
                 >
                   <div style={{
-                    width: 28,
-                    height: 28,
+                    width: 30,
+                    height: 30,
                     borderRadius: '50%',
-                    background: 'var(--primary)',
-                    color: '#ffffff',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    overflow: 'hidden',
                     flexShrink: 0,
-                    boxShadow: '0 0 0 2px rgba(150, 167, 141, 0.3)'
+                    boxShadow: '0 0 0 2px rgba(150, 167, 141, 0.4)',
+                    background: '#243027'
                   }}>
-                    {currentUser.avatarInitial || 'S'}
+                    <img
+                      src={currentUser.avatar || "/avatar.png"}
+                      alt={currentUser.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
                   </div>
                   <div style={{ overflow: 'hidden' }}>
                     <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#e0e8e2', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -358,21 +358,25 @@ export default function Sidebar({
                   onClick={onOpenUserDetails}
                   title={`View details for ${currentUser.name}`}
                   style={{
-                    width: 28,
-                    height: 28,
+                    width: 32,
+                    height: 32,
                     borderRadius: '50%',
-                    background: 'var(--primary)',
-                    color: '#fff',
+                    overflow: 'hidden',
                     border: 'none',
-                    fontWeight: 700,
+                    padding: 0,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: '0 0 0 2px rgba(150, 167, 141, 0.3)'
+                    boxShadow: '0 0 0 2px rgba(150, 167, 141, 0.4)',
+                    background: '#243027'
                   }}
                 >
-                  {currentUser.avatarInitial || 'S'}
+                  <img
+                    src={currentUser.avatar || "/avatar.png"}
+                    alt={currentUser.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
                 </button>
                 <button
                   type="button"

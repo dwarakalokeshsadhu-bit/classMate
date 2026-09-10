@@ -3,6 +3,7 @@ import {
   Send, Bot, User, Sparkles, Mic, MicOff, Globe, BookOpen,
   Code, AlertTriangle, Lightbulb, Compass, Loader2, HelpCircle
 } from 'lucide-react';
+import { apiUrl } from '../utils/api.js';
 
 const TUTOR_MODES = [
   { id: 'default', label: 'Tutor Chat', icon: Bot, desc: 'Interactive Q&A' },
@@ -119,7 +120,7 @@ export default function AITutorChat({ notes = '', topicTitle = 'Topic' }) {
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/generate/chat', {
+      const res = await fetch(apiUrl('/api/generate/chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

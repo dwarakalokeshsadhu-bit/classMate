@@ -63,6 +63,7 @@ export default function AuthLandingPage({ onLogin }) {
         email: email.trim(),
         branch: branch,
         role: 'Student',
+        avatar: '/avatar.png',
         avatarInitial: name.trim()[0].toUpperCase(),
         loggedInAt: new Date().toISOString()
       };
@@ -86,6 +87,7 @@ export default function AuthLandingPage({ onLogin }) {
         email: email.trim(),
         branch: 'Computer Science & Engineering',
         role: 'Student',
+        avatar: '/avatar.png',
         avatarInitial: (formattedName[0] || 'S').toUpperCase(),
         loggedInAt: new Date().toISOString()
       };

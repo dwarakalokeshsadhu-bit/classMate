@@ -3,6 +3,7 @@ import {
   Calendar, Clock, CheckSquare, Sparkles, Loader2, Award,
   AlertCircle, ChevronRight, Check, Zap, Flame, Target
 } from 'lucide-react';
+import { apiUrl } from '../utils/api.js';
 
 // Helper to get formatted YYYY-MM-DD
 const getTodayDateStr = () => {
@@ -94,7 +95,7 @@ export default function StudyPlanModal({
     const validDays = Math.max(1, Math.min(daysCount || 5, 30));
 
     try {
-      const res = await fetch('/api/generate/study-plan', {
+      const res = await fetch(apiUrl('/api/generate/study-plan'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

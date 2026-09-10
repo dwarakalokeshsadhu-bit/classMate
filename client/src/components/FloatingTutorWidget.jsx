@@ -3,6 +3,7 @@ import {
   MessageSquare, Send, Bot, User, Sparkles, Minus,
   Maximize2, X, Mic, MicOff, Loader2, Lightbulb
 } from 'lucide-react';
+import { apiUrl } from '../utils/api.js';
 
 export default function FloatingTutorWidget({
   notes,
@@ -37,7 +38,7 @@ export default function FloatingTutorWidget({
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/generate/chat', {
+      const res = await fetch(apiUrl('/api/generate/chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
