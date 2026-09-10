@@ -141,12 +141,6 @@ export default function Header({
           </button>
         </div>
 
-        {/* Study Streak Badge */}
-        <div className="streak-badge" title="Consecutive active study days">
-          <Flame size={16} color="#f97316" />
-          <span>{studyStreak} Day Streak</span>
-        </div>
-
         {/* Daily Revision Reminder Toggle */}
         <button
           type="button"

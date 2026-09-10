@@ -1,7 +1,7 @@
 import React from 'react';
 import {
-  ChevronRight, Share2, RotateCw, Flame, Search,
-  Check, Download, Bell, BellRing, LogOut, User
+  ChevronRight, Share2, RotateCw, Search,
+  Check, Download, Bell, BellRing, LogOut, User, Clock
 } from 'lucide-react';
 
 export default function TopBar({
@@ -11,9 +11,10 @@ export default function TopBar({
   onReviseAgain,
   isRegenerating,
   onOpenShare,
-  studyStreak = 1,
   dailyReminderEnabled,
   onToggleReminder,
+  onOpenHistory,
+  historyCount = 0,
   searchQuery,
   setSearchQuery,
   allDecks = {},
@@ -104,11 +105,16 @@ export default function TopBar({
           </button>
         )}
 
-        {/* Streak / Timer Badge */}
-        <div className="top-streak-pill" title="Current Daily Active Revision Streak">
-          <Flame size={14} color="#D9822B" />
-          <span>{studyStreak}d Streak</span>
-        </div>
+        {/* Generated Notes History */}
+        <button
+          type="button"
+          className="top-btn"
+          onClick={onOpenHistory}
+          title="Browse Generated Notes History"
+        >
+          <Clock size={14} />
+          <span>History{historyCount > 0 ? ` (${historyCount})` : ''}</span>
+        </button>
 
         {/* Daily Reminder Toggle */}
         <button

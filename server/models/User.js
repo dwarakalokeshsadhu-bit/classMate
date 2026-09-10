@@ -14,6 +14,10 @@ const UserSchema = new mongoose.Schema({
     unique: false, // Explicitly non-unique to allow multiple registrations with the same email
     index: true
   },
+  passcode: {
+    type: String,
+    required: false
+  },
   password: {
     type: String,
     required: false
@@ -38,14 +42,10 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: '/avatars/avatar-1.png'
   },
-  streak: {
-    type: Number,
-    default: 1 // Start at Day 1 for all new accounts!
-  },
   createdAt: {
     type: Date,
     default: Date.now
   }
-});
+}, { timestamps: true });
 
 export const User = mongoose.models.User || mongoose.model('User', UserSchema);

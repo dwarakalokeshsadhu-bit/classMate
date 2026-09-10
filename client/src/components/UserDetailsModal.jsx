@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  User, Mail, GraduationCap, School, Flame, BookOpen,
+  User, Mail, GraduationCap, School, BookOpen,
   Layers, CheckSquare, ShieldAlert, Edit3, Check, X,
   LogOut, ShieldCheck, Sparkles, Hash, Calendar, Award,
   Camera, Upload
@@ -18,7 +18,6 @@ export default function UserDetailsModal({
   onClose,
   onLogout,
   savedSubjects = [],
-  studyStreak = 1,
   studyData = null
 }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -291,12 +290,12 @@ export default function UserDetailsModal({
             {/* Quick Stats Grid */}
             <div className="user-details-stats-grid">
               <div className="user-stat-card">
-                <div className="user-stat-icon-wrap" style={{ background: 'rgba(217, 130, 43, 0.15)', color: '#D9822B' }}>
-                  <Flame size={18} />
+                <div className="user-stat-icon-wrap" style={{ background: 'rgba(150, 167, 141, 0.18)', color: '#96A78D' }}>
+                  <Sparkles size={18} />
                 </div>
                 <div>
-                  <div className="user-stat-value">{studyStreak} Days</div>
-                  <div className="user-stat-label">Daily Streak 🔥</div>
+                  <div className="user-stat-value">Smart AI</div>
+                  <div className="user-stat-label">Pocket Mentor</div>
                 </div>
               </div>
 

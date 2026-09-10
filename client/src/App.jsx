@@ -7,6 +7,7 @@ import ResultsScreen from './components/ResultsScreen.jsx';
 import AuthLandingPage from './components/AuthLandingPage.jsx';
 import StudyPlanModal from './components/StudyPlanModal.jsx';
 import UserDetailsModal from './components/UserDetailsModal.jsx';
+import HistoryModal from './components/HistoryModal.jsx';
 import { sanitizeNotesInput, containsMojiboke } from './utils/textSanitizer.js';
 import { apiUrl } from './utils/api.js';
 
@@ -45,8 +46,18 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Gamification & reminders
-  const [studyStreak, setStudyStreak] = useState(() => currentUser?.streak || 1);
   const [dailyReminderEnabled, setDailyReminderEnabled] = useState(false);
+
+  // Generated Notes History
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [noteHistory, setNoteHistory] = useState(() => {
+    try {
+      const stored = localStorage.getItem('pm_note_history');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  });
 
   // Check backend health on mount and restore local persistence with auto-purge of corrupted decks
   useEffect(() => {
@@ -96,10 +107,6 @@ export default function App() {
         setActiveView('input');
       }
 
-      const storedStreak = localStorage.getItem('pm_streak');
-      const resolvedStreak = currentUser?.streak || (storedStreak ? parseInt(storedStreak, 10) : 1);
-      setStudyStreak(resolvedStreak);
-
       const storedReminder = localStorage.getItem('pm_reminder');
       if (storedReminder) setDailyReminderEnabled(storedReminder === 'true');
     } catch (e) {
@@ -142,6 +149,104 @@ export default function App() {
       localStorage.removeItem('pm_user');
     } catch (e) {
       console.warn('Could not clear user session:', e);
+    }
+  };
+
+  // Fetch online note history on user mount or change
+  useEffect(() => {
+    if (!currentUser?.email) return;
+
+    fetch(apiUrl(`/api/history?email=${encodeURIComponent(currentUser.email)}`))
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.items)) {
+          setNoteHistory(data.items);
+          try {
+            localStorage.setItem('pm_note_history', JSON.stringify(data.items));
+          } catch (e) {}
+        }
+      })
+      .catch((err) => console.warn('History fetch notice:', err.message));
+  }, [currentUser?.email]);
+
+  // Save generated notes & revision deck into history (MongoDB + local backup)
+  const saveToHistory = async (cleanText, generatedData, subject) => {
+    const historyPayload = {
+      email: currentUser?.email || 'student@college.edu',
+      subject: subject || currentSubject,
+      title: generatedData?.title || 'Class Lecture Notes',
+      rawNotes: cleanText,
+      studyData: generatedData,
+      flashcardsCount: Array.isArray(generatedData?.flashcards) ? generatedData.flashcards.length : 0,
+      quizCount: Array.isArray(generatedData?.quiz) ? generatedData.quiz.length : 0,
+      createdAt: new Date().toISOString()
+    };
+
+    // Update local state and localStorage immediately
+    setNoteHistory((prev) => {
+      const filtered = prev.filter(
+        (h) => !(h.title === historyPayload.title && h.subject === historyPayload.subject)
+      );
+      const updated = [historyPayload, ...filtered];
+      try {
+        localStorage.setItem('pm_note_history', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    // Save to backend MongoDB
+    try {
+      const res = await fetch(apiUrl('/api/history'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(historyPayload)
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.item) {
+        // Update item with mongo _id
+        setNoteHistory((prev) =>
+          prev.map((h) => (h.createdAt === historyPayload.createdAt ? data.item : h))
+        );
+      }
+    } catch (e) {
+      console.warn('Backend history save notice (saved locally):', e.message);
+    }
+  };
+
+  // Restore note session from history into the active workspace
+  const handleRestoreFromHistory = (historyItem) => {
+    if (!historyItem) return;
+    if (historyItem.rawNotes) {
+      setNotes(historyItem.rawNotes);
+    }
+    if (historyItem.studyData) {
+      setStudyData(historyItem.studyData);
+    }
+    if (historyItem.subject) {
+      setCurrentSubject(historyItem.subject);
+      const updatedDecks = {
+        ...savedDecks,
+        [historyItem.subject]: { notes: historyItem.rawNotes || '', studyData: historyItem.studyData }
+      };
+      persistDecks(updatedDecks);
+    }
+    setActiveView('summary');
+  };
+
+  // Delete note history item
+  const handleDeleteHistoryItem = async (id) => {
+    setNoteHistory((prev) => {
+      const updated = prev.filter((item) => (item._id || item.id) !== id);
+      try {
+        localStorage.setItem('pm_note_history', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    try {
+      await fetch(apiUrl(`/api/history/${id}`), { method: 'DELETE' });
+    } catch (e) {
+      console.warn('Could not delete history item on server:', e);
     }
   };
 
@@ -188,7 +293,7 @@ export default function App() {
       }
       if (Notification.permission === 'granted') {
         new Notification('Class Mate Daily Revision 📚', {
-          body: 'Your 15-minute active recall review session is scheduled! Keep your study streak alive!',
+          body: 'Your 15-minute active recall review session is scheduled! Keep your revision momentum going!',
           icon: '/favicon.ico'
         });
       }
@@ -232,16 +337,12 @@ export default function App() {
       // Auto-save to current subject and persist to localStorage
       const updatedDecks = {
         ...savedDecks,
-        [currentSubject]: { notes, studyData: json.data }
+        [currentSubject]: { notes: cleanNotes, studyData: json.data }
       };
       persistDecks(updatedDecks);
 
-      // Increment streak
-      const newStreak = studyStreak + 1;
-      setStudyStreak(newStreak);
-      try {
-        localStorage.setItem('pm_streak', String(newStreak));
-      } catch (e) {}
+      // Save to note history in MongoDB and localStorage
+      saveToHistory(cleanNotes, json.data, currentSubject);
     } catch (err) {
       console.error('Generation Error:', err);
       setError(err.message || 'Connection error. Is the Class Mate backend running on port 5000?');
@@ -342,6 +443,8 @@ export default function App() {
         activeDeckTitle={studyData?.title || (notes ? notes.slice(0, 30) + '...' : 'New Revision Session')}
         currentUser={currentUser}
         onOpenUserDetails={() => setIsUserDetailsOpen(true)}
+        onOpenHistory={() => setIsHistoryOpen(true)}
+        historyCount={noteHistory.length}
         onLogout={handleLogout}
       />
 
@@ -359,7 +462,8 @@ export default function App() {
             navigator.clipboard.writeText(shareText);
             alert('Deck details copied to clipboard! Ready to share.');
           }}
-          studyStreak={studyStreak}
+          onOpenHistory={() => setIsHistoryOpen(true)}
+          historyCount={noteHistory.length}
           dailyReminderEnabled={dailyReminderEnabled}
           onToggleReminder={handleToggleDailyReminder}
           searchQuery={searchQuery}
@@ -439,8 +543,18 @@ export default function App() {
           onClose={() => setIsUserDetailsOpen(false)}
           onLogout={handleLogout}
           savedSubjects={savedSubjects}
-          studyStreak={studyStreak}
           studyData={studyData}
+        />
+      )}
+
+      {/* Generated Notes History Modal */}
+      {isHistoryOpen && (
+        <HistoryModal
+          historyItems={noteHistory}
+          onClose={() => setIsHistoryOpen(false)}
+          onRestoreSession={handleRestoreFromHistory}
+          onDeleteHistoryItem={handleDeleteHistoryItem}
+          currentSubject={currentSubject}
         />
       )}
     </div>

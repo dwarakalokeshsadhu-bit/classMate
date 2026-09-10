@@ -3,7 +3,7 @@ import {
   BookOpen, Home, Layers, CheckSquare, BarChart2, ShieldAlert,
   Presentation, MessageSquare, Plus, ChevronLeft, ChevronRight,
   Folder, Calendar, Sparkles, BookMarked, Radio, LogOut, Bot,
-  User, ShieldCheck
+  User, ShieldCheck, Clock
 } from 'lucide-react';
 
 export default function Sidebar({
@@ -20,6 +20,8 @@ export default function Sidebar({
   activeDeckTitle = "Active Study Set",
   currentUser,
   onOpenUserDetails,
+  onOpenHistory,
+  historyCount = 0,
   onLogout
 }) {
   const hasStudySet = Boolean(studyData);
@@ -97,6 +99,25 @@ export default function Sidebar({
                   <span className="sidebar-nav-badge" style={{ background: 'rgba(150, 167, 141, 0.22)', color: '#96A78D' }}>
                     Profile
                   </span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              className="sidebar-nav-btn"
+              onClick={onOpenHistory}
+              title="Generated Notes History & Past Decks"
+            >
+              <span className="sidebar-nav-icon"><Clock size={18} /></span>
+              {!isCollapsed && (
+                <>
+                  <span className="sidebar-nav-label">Notes History</span>
+                  {historyCount > 0 && (
+                    <span className="sidebar-nav-badge" style={{ background: 'rgba(150, 167, 141, 0.22)', color: '#96A78D' }}>
+                      {historyCount}
+                    </span>
+                  )}
                 </>
               )}
             </button>

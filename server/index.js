@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import generateRouter from './routes/generate.js';
 import { authRouter } from './routes/auth.js';
+import { historyRouter } from './routes/history.js';
 import { connectDB } from './config/db.js';
 
 // Load environment variables
@@ -56,6 +57,7 @@ app.get('/api/health', (req, res) => {
 // API Routes
 app.use('/api/generate', generateRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/history', historyRouter);
 
 // Serve static frontend assets if client dist exists (full-stack production deployment)
 const distPath = path.resolve(__dirname, '../client/dist');

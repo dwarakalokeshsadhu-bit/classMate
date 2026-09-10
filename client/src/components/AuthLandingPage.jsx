@@ -4,8 +4,9 @@ import {
   CheckCircle, ArrowRight, BookMarked, Layers, CheckSquare,
   Bot, AlertCircle, ChevronDown, X, Calendar, Mic, FileText,
   MessageSquare, Radio, HelpCircle, GraduationCap, Video,
-  Cpu, LayoutGrid, Gamepad2, Award, ExternalLink, Globe
+  Cpu, LayoutGrid, Gamepad2, Award, ExternalLink, Globe, Loader2
 } from 'lucide-react';
+import { apiUrl } from '../utils/api.js';
 
 export default function AuthLandingPage({ onLogin }) {
   // Navigation & Dropdown State
@@ -22,6 +23,7 @@ export default function AuthLandingPage({ onLogin }) {
   const [name, setName] = useState('');
   const [branch, setBranch] = useState('Computer Science & Eng (CSE)');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -40,7 +42,7 @@ export default function AuthLandingPage({ onLogin }) {
     setIsAuthModalOpen(true);
   };
 
-  const handleAuthSubmit = (e) => {
+  const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -50,24 +52,57 @@ export default function AuthLandingPage({ onLogin }) {
         return;
       }
       if (!email.trim() || (!email.includes('@') && email.trim().length < 4)) {
-        setError('Please enter a valid student email or ID.');
+        setError('Please enter a valid student email address.');
         return;
       }
       if (password.length < 4) {
-        setError('Password must be at least 4 characters.');
+        setError('Passcode must be at least 4 characters.');
         return;
       }
 
-      const userData = {
+      setIsSubmitting(true);
+      try {
+        const response = await fetch(apiUrl('/api/auth/register'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: name.trim(),
+            email: email.trim(),
+            passcode: password,
+            password: password,
+            branch
+          })
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success && data.user) {
+          onLogin(data.user);
+          return;
+        } else {
+          // If server reported validation error
+          if (data?.error) {
+            setError(data.error);
+            setIsSubmitting(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Backend register request failed, falling back to local session:', err);
+      } finally {
+        setIsSubmitting(false);
+      }
+
+      // Offline / fallback signup
+      const fallbackUser = {
         name: name.trim(),
         email: email.trim(),
         branch: branch,
         role: 'Student',
-        avatar: '/avatar.png',
+        avatar: '/avatars/avatar-1.png',
         avatarInitial: name.trim()[0].toUpperCase(),
         loggedInAt: new Date().toISOString()
       };
-      onLogin(userData);
+      onLogin(fallbackUser);
     } else {
       // Sign In
       if (!email.trim()) {
@@ -75,23 +110,50 @@ export default function AuthLandingPage({ onLogin }) {
         return;
       }
       if (!password) {
-        setError('Please enter your password.');
+        setError('Please enter your passcode.');
         return;
+      }
+
+      setIsSubmitting(true);
+      try {
+        const response = await fetch(apiUrl('/api/auth/login'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: email.trim(),
+            passcode: password,
+            password: password
+          })
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success && data.user) {
+          onLogin(data.user);
+          return;
+        } else if (data?.error) {
+          setError(data.error);
+          setIsSubmitting(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('Backend login request failed, falling back to local session:', err);
+      } finally {
+        setIsSubmitting(false);
       }
 
       const guessedName = email.split('@')[0].replace(/[._-]/g, ' ');
       const formattedName = guessedName.charAt(0).toUpperCase() + guessedName.slice(1);
 
-      const userData = {
+      const fallbackUser = {
         name: formattedName || 'Student',
         email: email.trim(),
         branch: 'Computer Science & Engineering',
         role: 'Student',
-        avatar: '/avatar.png',
+        avatar: '/avatars/avatar-1.png',
         avatarInitial: (formattedName[0] || 'S').toUpperCase(),
         loggedInAt: new Date().toISOString()
       };
-      onLogin(userData);
+      onLogin(fallbackUser);
     }
   };
 
@@ -839,22 +901,37 @@ export default function AuthLandingPage({ onLogin }) {
               )}
 
               <div className="auth-field-group">
-                <label className="auth-label">Password</label>
+                <label className="auth-label">Passcode / Password</label>
                 <input
                   type="password"
                   name="cm_student_secret_pass_unique"
                   className="auth-input"
-                  placeholder="Enter your password..."
+                  placeholder="Enter your 4+ digit student passcode..."
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
                   data-lpignore="true"
+                  required
                 />
               </div>
 
-              <button type="submit" className="btn-primary" style={{ marginTop: 8 }}>
-                {authMode === 'signin' ? <LogIn size={18} /> : <UserPlus size={18} />}
-                <span>{authMode === 'signin' ? 'Sign In to Class Mate' : 'Create Student Account'}</span>
+              <button
+                type="submit"
+                className="btn-primary"
+                style={{ marginTop: 8 }}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 size={18} className="spinner" />
+                    <span>Connecting...</span>
+                  </>
+                ) : (
+                  <>
+                    {authMode === 'signin' ? <LogIn size={18} /> : <UserPlus size={18} />}
+                    <span>{authMode === 'signin' ? 'Sign In to Class Mate' : 'Create Student Account'}</span>
+                  </>
+                )}
               </button>
             </form>
 
