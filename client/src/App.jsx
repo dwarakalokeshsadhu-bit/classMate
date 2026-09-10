@@ -9,7 +9,7 @@ import StudyPlanModal from './components/StudyPlanModal.jsx';
 import UserDetailsModal from './components/UserDetailsModal.jsx';
 import HistoryModal from './components/HistoryModal.jsx';
 import { sanitizeNotesInput, containsMojiboke } from './utils/textSanitizer.js';
-import { apiUrl } from './utils/api.js';
+import { apiUrl, authFetch } from './utils/api.js';
 
 // User-scoped storage key helpers to prevent cross-account data leakage
 const getUserDecksKey = (email) => (email ? `pm_saved_decks_${email.trim().toLowerCase()}` : 'pm_saved_decks_guest');
@@ -170,6 +170,7 @@ export default function App() {
 
     try {
       localStorage.removeItem('pm_user');
+      localStorage.removeItem('pm_token');
       localStorage.removeItem('pm_saved_decks');
       localStorage.removeItem('pm_note_history');
     } catch (e) {
@@ -177,10 +178,7 @@ export default function App() {
     }
 
     // Clear server httpOnly cookie
-    fetch(apiUrl('/api/auth/logout'), {
-      method: 'POST',
-      credentials: 'include'
-    }).catch(() => {});
+    authFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
   };
 
   // Fetch online note history on user mount or change
@@ -191,7 +189,7 @@ export default function App() {
     }
 
     // Verify session validity
-    fetch(apiUrl('/api/auth/me'), { credentials: 'include' })
+    authFetch('/api/auth/me')
       .then((res) => {
         if (res.status === 401) {
           handleLogout();
@@ -199,7 +197,7 @@ export default function App() {
       })
       .catch(() => {});
 
-    fetch(apiUrl('/api/history'), { credentials: 'include' })
+    authFetch('/api/history')
       .then((res) => res.json())
       .then((data) => {
         if (data.success && Array.isArray(data.items)) {
@@ -240,10 +238,9 @@ export default function App() {
 
     // Save to backend MongoDB
     try {
-      const res = await fetch(apiUrl('/api/history'), {
+      const res = await authFetch('/api/history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(historyPayload)
       });
       const data = await res.json();
@@ -290,9 +287,8 @@ export default function App() {
     });
 
     try {
-      await fetch(apiUrl(`/api/history/${id}`), {
-        method: 'DELETE',
-        credentials: 'include'
+      await authFetch(`/api/history/${id}`, {
+        method: 'DELETE'
       });
     } catch (e) {
       console.warn('Could not delete history item on server:', e);

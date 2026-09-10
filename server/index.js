@@ -29,10 +29,9 @@ const allowedOrigins = process.env.CORS_ORIGIN
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || process.env.NODE_ENV === 'production' || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-      return callback(null, true);
-    }
-    return callback(null, true);
+    // Echo the requesting origin to fully satisfy CORS with credentials across Vercel & localhost
+    if (!origin) return callback(null, true);
+    return callback(null, origin);
   },
   credentials: true
 }));

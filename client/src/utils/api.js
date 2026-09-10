@@ -12,3 +12,30 @@ export const apiUrl = (endpoint) => {
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   return `${API_BASE_URL}${cleanEndpoint}`;
 };
+
+/**
+ * Standardized fetch helper for authenticated requests.
+ * Transports both httpOnly cookies (credentials: include) AND Authorization Bearer header
+ * to guarantee authentication across third-party cross-site deployments (e.g. Vercel -> Render).
+ */
+export const authFetch = (endpoint, options = {}) => {
+  const url = apiUrl(endpoint);
+  let token = null;
+  try {
+    token = localStorage.getItem('pm_token');
+  } catch (e) {}
+
+  const headers = {
+    ...(options.headers || {})
+  };
+
+  if (token && !headers['Authorization'] && !headers['authorization']) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return fetch(url, {
+    ...options,
+    headers,
+    credentials: 'include'
+  });
+};

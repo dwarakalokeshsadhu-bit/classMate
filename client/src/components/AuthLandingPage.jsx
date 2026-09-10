@@ -76,6 +76,11 @@ export default function AuthLandingPage({ onLogin }) {
 
         const data = await response.json();
         if (response.ok && data.success && data.user) {
+          if (data.token) {
+            try {
+              localStorage.setItem('pm_token', data.token);
+            } catch (e) {}
+          }
           onLogin(data.user);
           return;
         } else {
@@ -114,6 +119,11 @@ export default function AuthLandingPage({ onLogin }) {
 
         const data = await response.json();
         if (response.ok && data.success && data.user) {
+          if (data.token) {
+            try {
+              localStorage.setItem('pm_token', data.token);
+            } catch (e) {}
+          }
           onLogin(data.user);
           return;
         } else {

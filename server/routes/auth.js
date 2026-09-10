@@ -44,10 +44,11 @@ function generateToken(user) {
  * Sets secure httpOnly session cookie for cross-request auth and XSS protection.
  */
 function setAuthCookie(res, token) {
+  const isCloud = process.env.NODE_ENV === 'production' || Boolean(process.env.RENDER) || Boolean(process.env.VERCEL);
   res.cookie('token', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: isCloud,
+    sameSite: isCloud ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
   });
 }
@@ -245,10 +246,11 @@ authRouter.post('/login', authLimiter, async (req, res) => {
  * Clears the httpOnly session cookie.
  */
 authRouter.post('/logout', (req, res) => {
+  const isCloud = process.env.NODE_ENV === 'production' || Boolean(process.env.RENDER) || Boolean(process.env.VERCEL);
   res.clearCookie('token', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    secure: isCloud,
+    sameSite: isCloud ? 'none' : 'lax'
   });
   return res.json({
     success: true,
