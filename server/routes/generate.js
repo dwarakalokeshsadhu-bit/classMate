@@ -144,25 +144,26 @@ router.post('/ocr', async (req, res) => {
  */
 router.post('/chat', async (req, res) => {
   try {
-    const { notes, message, history, mode, language } = req.body;
+    const { notes, message, userMessage, query, history, mode, language } = req.body;
+    const actualMessage = (message || userMessage || query || '').trim();
 
-    if (!message || typeof message !== 'string') {
+    if (!actualMessage) {
       return res.status(400).json({ success: false, error: 'A question or message is required.' });
     }
 
     let answer;
     if (hasValidApiKey()) {
       try {
-        answer = await chatWithGemini(notes || '', message, history || [], mode || 'default', language || 'English', process.env.GEMINI_API_KEY);
+        answer = await chatWithGemini(notes || '', actualMessage, history || [], mode || 'default', language || 'English', process.env.GEMINI_API_KEY);
       } catch (err) {
         console.warn('Gemini chat failed, using local tutor engine:', err.message);
-        answer = chatMockTutor(notes || '', message, history || [], mode || 'default', language || 'English');
+        answer = chatMockTutor(notes || '', actualMessage, history || [], mode || 'default', language || 'English');
       }
     } else {
-      answer = chatMockTutor(notes || '', message, history || [], mode || 'default', language || 'English');
+      answer = chatMockTutor(notes || '', actualMessage, history || [], mode || 'default', language || 'English');
     }
 
-    return res.json({ success: true, response: answer });
+    return res.json({ success: true, response: answer, reply: answer });
   } catch (err) {
     console.error('Error in /api/generate/chat:', err);
     return res.status(500).json({ success: false, error: err.message });

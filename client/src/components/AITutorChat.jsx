@@ -126,6 +126,7 @@ export default function AITutorChat({ notes = '', topicTitle = 'Topic' }) {
         body: JSON.stringify({
           notes,
           message: query,
+          userMessage: query,
           mode: modeOverride,
           language: currentLang,
           history: messages.slice(-4)
@@ -133,9 +134,9 @@ export default function AITutorChat({ notes = '', topicTitle = 'Topic' }) {
       });
 
       const json = await res.json();
-      const botReply = json.success && json.response
-        ? json.response
-        : 'I could not generate a response. Please verify your connection.';
+      const botReply = json.success && (json.response || json.reply)
+        ? (json.response || json.reply)
+        : (json.error || 'I could not generate a response. Please verify your connection.');
 
       // Generate dynamic follow-up options
       const dynamicFollowUps = [

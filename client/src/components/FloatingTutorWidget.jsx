@@ -43,6 +43,7 @@ export default function FloatingTutorWidget({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           notes: notes || 'General academic study concepts and active recall methods.',
+          message: textToSend.trim(),
           userMessage: textToSend.trim(),
           history: newMessages.slice(-6),
           mode,
@@ -51,8 +52,9 @@ export default function FloatingTutorWidget({
       });
 
       const json = await res.json();
-      if (json.success && json.reply) {
-        setMessages((prev) => [...prev, { role: 'assistant', text: json.reply }]);
+      const botText = json.reply || json.response;
+      if (json.success && botText) {
+        setMessages((prev) => [...prev, { role: 'assistant', text: botText }]);
       } else {
         throw new Error(json.error || 'Failed to get response from AI tutor.');
       }

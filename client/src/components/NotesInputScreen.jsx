@@ -7,56 +7,6 @@ import {
   Image as ImageIcon, Wand2, FileCode, CheckCircle, AlertCircle
 } from 'lucide-react';
 
-const PRESETS = [
-  {
-    name: 'Operating Systems: Paging & Virtual Memory',
-    subject: 'Computer Science',
-    text: `Operating Systems Lecture 12: Memory Management & Paging
-- Paging solves external fragmentation by allowing physical address space of a process to be noncontiguous.
-- Physical memory is broken into fixed-sized blocks called frames.
-- Logical/virtual memory is broken into blocks of the same size called pages.
-- When a process runs, its pages are loaded into any available frames from backing store (disk).
-- Address translation: CPU produces logical address divided into page number (p) and page offset (d).
-- Page table contains base address of each page in physical memory.
-- Page Fault: occurs when CPU references a page not present in physical RAM (valid-invalid bit is 0). The OS traps to kernel, swaps page from disk into a free frame, updates page table, and restarts instruction.
-- Translation Lookaside Buffer (TLB): High-speed hardware associative cache storing recent page-to-frame translations to avoid two memory accesses per data lookup.`
-  },
-  {
-    name: 'Compiler Design: Lexical Analysis & Automata',
-    subject: 'Computer Science',
-    text: `Compiler Design Unit 1 - Lexical Analysis (Scanning):
-- First phase of a compiler. Reads source program input as character stream, produces tokens.
-- Token: <token-name, optional-attribute-value>. Examples: keywords, identifiers, constants, operators.
-- Lexeme: specific sequence of characters in the source code matching the pattern for a token.
-- Pattern: description of the form that the lexemes of a token may take (using Regular Expressions).
-- Buffer Pairs: used to speed up reading source characters without system call per character. Two buffers of size N alternatingly loaded; two pointers (Begin and Forward).
-- Transition diagrams & Finite Automata (DFA/NFA) implement recognizers for tokens.
-- Input Buffering & Lookahead: Lexer frequently inspects lookahead character (e.g. distinguishing '>' from '>=').`
-  },
-  {
-    name: 'Biology: Photosynthesis & Light Reactions',
-    subject: 'Biology',
-    text: `Photosynthesis Overview:
-Process by which plants, algae, and cyanobacteria convert light energy into chemical energy (glucose).
-Equation: 6CO2 + 6H2O + light -> C6H12O6 + 6O2.
-Takes place in chloroplasts.
-Two main stages:
-1. Light-dependent reactions: occur in the thylakoid membranes. Chlorophyll absorbs solar photons. Water is split (photolysis) producing oxygen, ATP, and NADPH.
-2. Light-independent reactions (Calvin Cycle): occurs in the stroma. Carbon fixation catalyzed by RuBisCO enzyme. ATP and NADPH convert 3-PGA into G3P (sugars).
-Limiting factors: light intensity, carbon dioxide concentration, ambient temperature.`
-  },
-  {
-    name: 'Economics: Supply, Demand & Market Equilibrium',
-    subject: 'Economics',
-    text: `Economics Unit 2 - Market Dynamics:
-- Law of Demand: As price increases, quantity demanded decreases, ceteris paribus (downward sloping curve).
-- Law of Supply: As price increases, quantity supplied increases (upward sloping curve).
-- Equilibrium: Intersection where Quantity Supplied equals Quantity Demanded. Clears market shortages and surpluses.
-- Elasticity of Demand: Measure of responsiveness of quantity demanded to price change (Ed = % change in Qd / % change in P).
-- Price Ceilings vs Price Floors: Ceilings set maximum price below equilibrium creating shortages; Floors set minimum price above equilibrium creating surpluses (e.g., minimum wage).`
-  }
-];
-
 export default function NotesInputScreen({
   notes,
   setNotes,
@@ -282,28 +232,6 @@ This will definitely be tested on the midterm!"`;
           <span>{cleanSuccessNotice}</span>
         </div>
       )}
-
-      {/* Quick Presets */}
-      <div className="presets-bar">
-        <span className="presets-label">
-          <Lightbulb size={14} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 4 }} />
-          Sample Topics:
-        </span>
-        {PRESETS.map((p) => (
-          <button
-            key={p.name}
-            type="button"
-            className="preset-chip"
-            onClick={() => {
-              setNotes(p.text);
-              if (onSubjectChange && p.subject) onSubjectChange(p.subject);
-            }}
-            disabled={isLoading || isCleaning || isTranscribingOcr}
-          >
-            {p.name}
-          </button>
-        ))}
-      </div>
 
       {/* Input Action Bar */}
       <div className="input-toolbar">

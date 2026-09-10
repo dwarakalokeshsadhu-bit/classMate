@@ -1,8 +1,37 @@
 import { GoogleGenAI } from '@google/genai';
 import { cleanAndParseJSON } from '../utils/jsonCleaner.js';
 
+// Candidate models in preference order (as instructed by Gemini API notice)
+const GEMINI_CANDIDATE_MODELS = [
+  process.env.GEMINI_MODEL,
+  'gemini-3.6-flash',
+  'gemini-3.7-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-2.5-flash'
+].filter(Boolean);
+
 /**
- * Live Gemini 2.5 generative engine for Pocket Mentor
+ * Executes a Gemini request with automatic multi-model fallback
+ */
+async function generateWithFallback(ai, requestOptions) {
+  let lastError;
+  for (const model of GEMINI_CANDIDATE_MODELS) {
+    try {
+      const response = await ai.models.generateContent({
+        ...requestOptions,
+        model
+      });
+      return response;
+    } catch (err) {
+      lastError = err;
+      console.warn(`[Gemini API] Model '${model}' failed: ${err.message}. Trying next candidate model...`);
+    }
+  }
+  throw lastError || new Error('All candidate Gemini models failed.');
+}
+
+/**
+ * Live Gemini generative engine for Pocket Mentor
  */
 export async function generateWithGemini(notes, apiKey, mode = 'fresh') {
   const ai = new GoogleGenAI({ apiKey });
@@ -92,8 +121,7 @@ ${notes}
 `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+    const response = await generateWithFallback(ai, {
       contents: prompt,
       config: {
         responseMimeType: 'application/json'
@@ -141,8 +169,7 @@ ${rawNotes}
 """
 `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+  const response = await generateWithFallback(ai, {
     contents: prompt
   });
 
@@ -160,8 +187,7 @@ Transcribe and extract the text from this uploaded document or image of handwrit
 Clean up the handwriting or document content into clear, organized, well-formatted study notes with headers and bullets.
 If equations, diagrams, or arrows exist, transcribe them clearly in text or markdown notation.`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+  const response = await generateWithFallback(ai, {
     contents: [
       {
         inlineData: {
@@ -214,8 +240,7 @@ ${userMessage}
 """
 `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+  const response = await generateWithFallback(ai, {
     contents: prompt
   });
 
@@ -255,8 +280,7 @@ ${notes.slice(0, 1500)}
 `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+    const response = await generateWithFallback(ai, {
       contents: prompt,
       config: {
         responseMimeType: 'application/json'
