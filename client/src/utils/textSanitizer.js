@@ -39,6 +39,11 @@ export function isBannerOrNoiseLine(line) {
     return true;
   }
 
+  // System disclaimer banners / setup advice
+  if (/\b(?:gemini|api key|live ai is required|document received|camera capture received)\b/i.test(trimmed)) {
+    return true;
+  }
+
   return false;
 }
 

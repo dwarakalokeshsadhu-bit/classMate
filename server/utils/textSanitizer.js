@@ -56,6 +56,11 @@ export function isBannerOrNoiseLine(line) {
     return true;
   }
 
+  // System disclaimer banners / setup advice
+  if (/\b(?:gemini|api key|live ai is required|document received|camera capture received)\b/i.test(trimmed)) {
+    return true;
+  }
+
   return false;
 }
 
@@ -67,11 +72,12 @@ export function sanitizeTitle(rawTitle, fallback = "Class Lecture Notes") {
   if (!rawTitle || typeof rawTitle !== 'string') return fallback;
   if (isBannerOrNoiseLine(rawTitle)) return fallback;
 
-  // Strip replacement characters, control codes, and markdown symbols
+  // Strip replacement characters, control codes, emojis, and markdown symbols
   let cleaned = rawTitle
     .replace(REPLACEMENT_CHAR_REGEX, '')
     .replace(CONTROL_CHAR_REGEX, '')
-    .replace(/^[#\-*=>~`\s]+/, '')
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+    .replace(/^[#\-*=>~`\s\d.)]+/, '')
     .replace(/[#\-*=>~`\s]+$/, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -87,8 +93,8 @@ export function sanitizeTitle(rawTitle, fallback = "Class Lecture Notes") {
     return fallback;
   }
 
-  // Reject banner phrases that leak through
-  if (/\b(?:transcribed|handwritten notes|document|page \d+)\b/i.test(cleaned)) {
+  // Reject banner phrases or generic placeholders that leak through
+  if (/\b(?:transcribed|handwritten notes|document|page \d+|organized study notes|study notes|class lecture notes)\b/i.test(cleaned)) {
     return fallback;
   }
 

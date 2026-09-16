@@ -180,7 +180,8 @@ This will definitely be tested on the midterm!"`;
           body: JSON.stringify({
             imageBase64: base64Data,
             mimeType: file.type || 'image/jpeg',
-            fileName: file.name
+            fileName: file.name,
+            subject: currentSubject || ''
           })
         });
 

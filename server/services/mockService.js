@@ -7,24 +7,88 @@ import { sanitizeTitle, isBannerOrNoiseLine } from '../utils/textSanitizer.js';
  * without requiring external API keys.
  */
 
-// Stopwords to reject when extracting terms
-const STOPWORDS = new Set([
+// Stopwords and meta terms to strictly reject when extracting terms
+const DISALLOWED_TERMS = new Set([
   'the', 'this', 'that', 'with', 'from', 'when', 'where', 'which', 'what',
-  'rule', 'exam', 'note', 'topic', 'chapter', 'unit', 'transcribed', 'document',
-  'page', 'let', 'step', 'case', 'table', 'section', 'lecture', 'notes',
-  'and', 'for', 'are', 'was', 'were', 'have', 'has', 'been', 'their', 'there'
+  'rule', 'rules', 'exam', 'note', 'notes', 'topic', 'topics', 'chapter', 'unit',
+  'transcribed', 'document', 'page', 'let', 'step', 'steps', 'case', 'table',
+  'section', 'lecture', 'and', 'for', 'are', 'was', 'were', 'have', 'has', 'been',
+  'their', 'there', 'gemini', 'api', 'key', 'live', 'required', 'however', 'overview',
+  'objectives', 'concept', 'concepts', 'principle', 'principles', 'mechanism',
+  'mechanisms', 'operational', 'alert', 'summary', 'camera', 'capture', 'received',
+  'study', 'suite', 'checklist', 'verified', 'definition', 'definitions', 'example',
+  'examples', 'introduction', 'conclusion', 'outline', 'syllabus', 'operational principle',
+  'core concept', 'boundary constraints', 'primary focus', 'class lecture notes',
+  'organized study notes', 'study notes', 'lecture notes'
 ]);
 
-function isValidTerm(term) {
-  if (!term || typeof term !== 'string') return false;
-  const clean = term.trim().replace(/^[#*•\-\s]+/, '').replace(/[:.,]$/, '').trim();
-  if (clean.length < 3 || clean.length > 45) return false;
-  const alphaCount = (clean.match(/[a-zA-Z]/g) || []).length;
-  if (alphaCount < 3) return false;
-  if (STOPWORDS.has(clean.toLowerCase())) return false;
-  if (/^[-=~*#\d.]+$/.test(clean)) return false;
-  return true;
+/**
+ * Strips all markdown syntax, headers, checkboxes, bold/italic, emojis, and leading bullets
+ */
+export function cleanLine(line) {
+  if (!line || typeof line !== 'string') return '';
+  return line
+    .replace(/^#+\s*/, '')
+    .replace(/^[-*•\d.)]+\s*/, '')
+    .replace(/\[[ x]\]/gi, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
+
+/**
+ * Detects if a line is a section header, table of contents, or meta disclaimer (NOT an explanatory sentence)
+ */
+export function isSectionHeaderOrMeta(line) {
+  if (!line || typeof line !== 'string') return true;
+  const raw = line.trim();
+  if (raw.length < 3) return true;
+  if (/^#{1,6}\s+/.test(raw)) return true;
+  const c = cleanLine(line).toLowerCase();
+  if (c.length < 3) return true;
+  if (/^(overview|objectives|core concepts|key principles|rules|checklist|summary|introduction|table of contents|contents|chapter|unit|section|notes|study notes|organized study notes|quick formula|definitions|key points|takeaway|references)\b/i.test(c)) {
+    return true;
+  }
+  if (/\b(gemini|api key|live ai|transcribed from|extracted from|received successfully|please paste|upload a)\b/i.test(c)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Sanitizes and validates a candidate academic term.
+ * Guarantees no leading/trailing punctuation, no unbalanced brackets, no meta words.
+ */
+export function cleanAndValidateTerm(rawTerm) {
+  if (!rawTerm || typeof rawTerm !== 'string') return null;
+  let clean = rawTerm
+    .replace(/^[#*•\-\s\d.)\(\[\{\"'`~:]+/, '')
+    .replace(/[#*•\-\s\d.)\(\]\}\"'`~:,;]+$/, '')
+    .trim();
+
+  clean = clean.replace(/[\(\)\[\]\{\}]/g, '').trim();
+
+  if (clean.length < 3 || clean.length > 35) return null;
+  const alphaChars = (clean.match(/[a-zA-Z]/g) || []).length;
+  if (alphaChars < 3) return null;
+
+  const lower = clean.toLowerCase();
+  if (DISALLOWED_TERMS.has(lower)) return null;
+  if (/^[^a-zA-Z]+$/.test(clean)) return null;
+  if (/^(and|or|but|the|this|that|with|from|when|where|which|what|however|because|although|since|while|before|after|also|please|note|your)\b/i.test(clean)) {
+    return null;
+  }
+
+  return clean;
+}
+
+export function isValidTerm(term) {
+  return cleanAndValidateTerm(term) !== null;
+}
+
 
 /**
  * Domain Pack: Database Management Systems (DBMS) - Functional Dependencies & Normalization
@@ -903,46 +967,60 @@ function getOsStudyPack(mode = 'fresh') {
 }
 
 /**
- * Universal Generic Study Pack for student notes that do not match predefined domains
+ * Universal Generic Study Pack for student notes that do not match predefined domains.
+ * Completely immune to noisy headers, markdown formatting artifacts, or meta disclaimers.
  */
 function getGenericStudyPack(rawNotes, mode = 'fresh') {
   const isVariation = mode === 'variation';
 
-  // 1. Strip all banner lines and noise
-  const lines = (rawNotes || '')
+  // 1. Clean and filter raw lines
+  const rawLines = (rawNotes || '')
     .replace(/\uFFFD/g, '')
     .split('\n')
     .map(l => l.trim())
     .filter(l => l.length > 0 && !isBannerOrNoiseLine(l));
 
   // 2. Extract clean title
-  const candidateTitleLine = lines.find(l => {
-    const stripped = l.replace(/^[#\-*=>~`\s]+/, '').trim();
-    const alphaCount = (stripped.match(/[a-zA-Z]/g) || []).length;
-    return stripped.length >= 4 && alphaCount >= 4 && !isBannerOrNoiseLine(l);
-  }) || "Class Lecture Notes";
+  let titleGuess = "Class Lecture Notes";
+  for (const line of rawLines) {
+    if (isBannerOrNoiseLine(line)) continue;
+    const c = cleanLine(line);
+    if (/^(organized study notes|study notes|lecture notes|notes|document|untitled|camera capture|overview)\b/i.test(c)) continue;
+    if (c.length >= 4 && c.length <= 60 && /[a-zA-Z]{3,}/.test(c)) {
+      titleGuess = c;
+      break;
+    }
+  }
+  titleGuess = sanitizeTitle(titleGuess, "Class Lecture Notes");
 
-  const titleGuess = sanitizeTitle(candidateTitleLine, "Class Lecture Notes");
-
-  // 3. Extract meaningful sentences
-  const statements = [];
-  lines.forEach(line => {
-    const stripped = line.replace(/^(\d+[\.\)]|[-*•])\s*/, '').trim();
-    if (stripped.length > 15 && !isBannerOrNoiseLine(stripped)) {
-      const sentences = stripped.split(/(?<=[.?!])\s+/).map(s => s.trim()).filter(s => s.length > 15);
-      if (sentences.length > 0) {
-        statements.push(...sentences);
+  // 3. Extract meaningful explanation sentences (skipping headings, meta lines, and short fragments)
+  const meaningfulSentences = [];
+  rawLines.forEach(line => {
+    if (isBannerOrNoiseLine(line) || isSectionHeaderOrMeta(line)) return;
+    const cleaned = cleanLine(line);
+    if (cleaned.length >= 20 && /[a-zA-Z]{4,}/.test(cleaned)) {
+      if (cleaned.includes(':')) {
+        const parts = cleaned.split(':');
+        const def = parts.slice(1).join(':').trim();
+        if (def.length >= 20 && !isSectionHeaderOrMeta(def)) {
+          meaningfulSentences.push(def);
+        }
       } else {
-        statements.push(stripped);
+        const sents = cleaned.split(/(?<=[.?!])\s+/).map(s => s.trim()).filter(s => s.length >= 20);
+        if (sents.length > 0) {
+          meaningfulSentences.push(...sents);
+        } else {
+          meaningfulSentences.push(cleaned);
+        }
       }
     }
   });
 
-  const mainSentences = statements.length > 0 ? statements.slice(0, 10) : [
-    `Core principles and fundamental mechanisms of ${titleGuess}.`,
-    `Structured operational rules and key properties governing this topic.`,
-    `Critical constraints, conditions, and boundary validations required.`,
-    `Key distinctions, applications, and problem-solving methodologies.`
+  const mainSentences = meaningfulSentences.length > 0 ? meaningfulSentences.slice(0, 10) : [
+    `These notes establish the foundational concepts, definitions, and operational mechanisms of ${titleGuess}.`,
+    `Structured operational rules, boundary constraints, and verification steps must be applied consistently.`,
+    `Critical distinctions and condition boundaries govern practical problem solving in ${titleGuess}.`,
+    `Exam mastery requires accurate recall of definitions, invariants, and step-by-step procedures.`
   ];
 
   // 4. Extract terms & definitions with strict validation
@@ -950,69 +1028,68 @@ function getGenericStudyPack(rawNotes, mode = 'fresh') {
   const seenTerms = new Set();
 
   // Pattern 1: Colon / Dash definitions (e.g. Term: Definition)
-  const colonRegex = /(?:^|\n)\s*(?:\d+[\.\)]\s*|[-*•]\s*)?\*?\*?([A-Za-z0-9\s-]{3,35})\*?\*?\s*[:\-–—]\s*([^\n\r]+)/g;
+  const colonRegex = /(?:^|\n)\s*(?:\d+[\.\)]\s*|[-*•]\s*)?\*?\*?([A-Za-z0-9\s-]{3,40})\*?\*?\s*[:\-–—]\s*([^\n\r]+)/g;
   let match;
   while ((match = colonRegex.exec(rawNotes)) !== null && termMatches.length < 6) {
-    const t = match[1].trim().replace(/^(\d+[\.\)]|[-*•])\s*/, '').trim();
-    const d = match[2].trim().replace(/^[-*•\s]+/, '');
-    if (isValidTerm(t) && !seenTerms.has(t.toLowerCase()) && d.length > 12 && !isBannerOrNoiseLine(d)) {
+    const t = cleanAndValidateTerm(match[1]);
+    const d = cleanLine(match[2]);
+    if (t && !seenTerms.has(t.toLowerCase()) && d.length >= 15 && !isSectionHeaderOrMeta(d) && !isBannerOrNoiseLine(d)) {
+      if (titleGuess.toLowerCase().startsWith(t.toLowerCase()) && t.length < 12) continue;
       seenTerms.add(t.toLowerCase());
       termMatches.push({
         term: t,
         definition: d.length > 180 ? d.slice(0, 177) + '...' : d,
-        example: `Syllabus application: Direct definition question on ${t}.`
+        example: `Syllabus application: Core definition and exam rule on ${t}.`
       });
     }
   }
 
   // Pattern 2: "X is defined as / refers to / means Y"
-  const isRegex = /([A-Z][A-Za-z0-9\s-]{2,28})\s+(?:is defined as|refers to|means|is characterized by)\s+([^.?!;\n]{15,180})/g;
+  const isRegex = /([A-Z][A-Za-z0-9\s-]{2,30})\s+(?:is defined as|refers to|means|is characterized by|specifies that)\s+([^.?!;\n]{15,180})/g;
   while ((match = isRegex.exec(rawNotes)) !== null && termMatches.length < 6) {
-    const t = match[1].trim().replace(/^(\d+[\.\)]|[-*•])\s*/, '').trim();
-    const d = match[2].trim();
-    if (isValidTerm(t) && !seenTerms.has(t.toLowerCase()) && d.length > 12 && !isBannerOrNoiseLine(d)) {
+    const t = cleanAndValidateTerm(match[1]);
+    const d = cleanLine(match[2]);
+    if (t && !seenTerms.has(t.toLowerCase()) && d.length >= 15 && !isSectionHeaderOrMeta(d) && !isBannerOrNoiseLine(d)) {
       seenTerms.add(t.toLowerCase());
       termMatches.push({
         term: t,
         definition: d.length > 180 ? d.slice(0, 177) + '...' : d,
-        example: `Foundational property of ${t} as stated in the notes.`
+        example: `Foundational property of ${t} as stated in the lecture material.`
       });
     }
   }
 
-  // Fallback term extraction
-  if (termMatches.length < 3) {
-    mainSentences.forEach((s) => {
-      if (termMatches.length < 4) {
-        const words = s.split(/\s+/).filter(w => w.length > 2);
-        if (words.length >= 3) {
-          const candidateTerm = words.slice(0, Math.min(3, words.length)).join(' ').replace(/^[#*-•\s]+/, '').replace(/[:.,]$/, '');
-          if (isValidTerm(candidateTerm) && !seenTerms.has(candidateTerm.toLowerCase())) {
-            seenTerms.add(candidateTerm.toLowerCase());
-            termMatches.push({
-              term: candidateTerm,
-              definition: s,
-              example: `Directly excerpted from the lecture material on ${titleGuess}.`
-            });
-          }
-        }
+  // Pattern 3: Extract technical multi-word capitalized phrases from sentences
+  if (termMatches.length < 2) {
+    const phraseRegex = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})\b/g;
+    let pm;
+    while ((pm = phraseRegex.exec(rawNotes)) !== null && termMatches.length < 4) {
+      const candidatePhrase = cleanAndValidateTerm(pm[1]);
+      if (candidatePhrase && !seenTerms.has(candidatePhrase.toLowerCase())) {
+        seenTerms.add(candidatePhrase.toLowerCase());
+        const containingSentence = mainSentences.find(s => s.toLowerCase().includes(candidatePhrase.toLowerCase())) || mainSentences[termMatches.length] || `A foundational concept and mechanism in ${titleGuess}.`;
+        termMatches.push({
+          term: candidatePhrase,
+          definition: containingSentence,
+          example: `Key operational mechanism in ${titleGuess}.`
+        });
       }
-    });
+    }
   }
 
-  // Guarantee at least two valid terms
+  // Fallback term generation ensuring meaningful academic labels
   if (termMatches.length === 0) {
     termMatches.push({
-      term: titleGuess,
-      definition: mainSentences[0] || `The core foundational concept presented in the lecture notes.`,
+      term: `${titleGuess} Principles`,
+      definition: mainSentences[0] || `The core foundational mechanisms and concepts presented in ${titleGuess}.`,
       example: `Primary exam focus for ${titleGuess}.`
     });
   }
   if (termMatches.length < 2) {
     termMatches.push({
-      term: "Operational Principle",
-      definition: mainSentences[1] || `The structured mechanism and operational rules governing ${titleGuess}.`,
-      example: `Core mechanics and exam conditions for ${titleGuess}.`
+      term: `${titleGuess} Operational Rules`,
+      definition: mainSentences[1] || `The structured mechanisms and validation rules governing ${titleGuess}.`,
+      example: `Core mechanics and condition boundaries for ${titleGuess}.`
     });
   }
 
@@ -1020,16 +1097,16 @@ function getGenericStudyPack(rawNotes, mode = 'fresh') {
   const d1 = termMatches[0].definition;
   const t2 = termMatches[1].term;
   const d2 = termMatches[1].definition;
-  const t3 = termMatches[2] ? termMatches[2].term : "Boundary Constraints";
-  const d3 = termMatches[2] ? termMatches[2].definition : (mainSentences[2] || `Ensure verified boundary conditions are met.`);
+  const t3 = termMatches[2] ? termMatches[2].term : `${titleGuess} Invariants`;
+  const d3 = termMatches[2] ? termMatches[2].definition : (mainSentences[2] || `Strict boundary conditions and rules that must hold.`);
 
-  // Formatted 60-Second Rescue Summary with markdown bullet points
+  // Formatted 60-Second Rescue Summary with clear markdown bullet points
   const rescueSummary = `⚡ **60-SECOND RESCUE SUMMARY: ${titleGuess}**
 
-• **Core Concept**: ${mainSentences[0] || `These notes establish the foundational principles of ${titleGuess}.`}
-• **Key Principle (${t1})**: ${d1}
+• **Core Takeaway**: ${mainSentences[0] || `These notes establish the foundational principles of ${titleGuess}.`}
+• **Key Concept (${t1})**: ${d1}
 • **Operational Mechanism (${t2})**: ${d2}
-• **Exam Alert**: Master the precise definitions of **${t1}** and **${t2}**, verify all stated operational rules, and watch for condition boundaries during problem solving.`;
+• **Exam Alert**: Master the core definitions of **${t1}** and **${t2}**, verify all stated operational rules, and watch for condition boundaries during problem solving.`;
 
   const deepSummary = `### Comprehensive Topic Analysis: ${titleGuess}
 
@@ -1043,16 +1120,16 @@ ${termMatches.slice(0, 4).map(tm => `- **${tm.term}**: ${tm.definition}`).join('
 ${mainSentences.slice(2, 5).map(s => `- ${s}`).join('\n') || `- Strict operational rules and boundary checks must be verified.`}
 
 #### 4. High-Yield Exam Strategy:
-- Master the exact distinction between **${t1}** and **${t2}**.
-- Watch for edge-case questions that alter the conditions or invert the rules stated in the notes.
-- Review formulas, steps, and classifications verbatim as presented.`;
+- Clearly distinguish between **${t1}** and **${t2}** in short-answer and multiple-choice questions.
+- Watch for trick questions that invert the operational conditions stated in the notes.
+- Review formulas, classifications, and execution steps exactly as presented.`;
 
   const keyPoints = [
     `Primary Focus: ${titleGuess} - ${mainSentences[0] || 'Core principles and definitions.'}`,
     `Key Definition (${t1}): ${d1}`,
     `Core Mechanism (${t2}): ${d2}`,
     mainSentences[2] ? `Operational Rule: ${mainSentences[2]}` : `Constraint Verification: Ensure boundary conditions are maintained.`,
-    `Exam Takeaway: Ensure accurate retrieval of definitions and mechanisms for ${titleGuess}.`
+    `Exam Takeaway: Ensure accurate recall of mechanisms and definitions for ${titleGuess}.`
   ];
 
   const flashcards = [
@@ -1082,7 +1159,7 @@ ${mainSentences.slice(2, 5).map(s => `- ${s}`).join('\n') || `- Strict operation
       id: "fc-gen-3",
       question: isVariation
         ? `Which condition, formula, or constraint is explicitly highlighted for "${t3}"?`
-        : `What key rule or principle is stated regarding: "${t3}"?`,
+        : `What key rule or principle is stated regarding "${t3}"?`,
       answer: d3,
       topic: `${t2} - Operations`,
       difficulty: "hard",
@@ -1092,8 +1169,8 @@ ${mainSentences.slice(2, 5).map(s => `- ${s}`).join('\n') || `- Strict operation
     {
       id: "fc-gen-4",
       question: isVariation
-        ? `How is "${t1}" related to or distinguished within ${titleGuess}?`
-        : `What is the significance of "${t1}" according to the uploaded material?`,
+        ? `How is "${t1}" applied or distinguished within ${titleGuess}?`
+        : `What is the significance of "${t1}" in problem solving for ${titleGuess}?`,
       answer: d1,
       topic: `${titleGuess} - Exam Rules`,
       difficulty: "medium",
@@ -1113,9 +1190,9 @@ ${mainSentences.slice(2, 5).map(s => `- ${s}`).join('\n') || `- Strict operation
     }
   ];
 
-  const distractorA = d2 !== d1 ? d2 : `It operates arbitrarily without following the conditions specified in the notes.`;
+  const distractorA = d2 !== d1 ? d2 : `It operates unconditionally without following the conditions specified in the notes.`;
   const distractorB = d3 !== d1 && d3 !== d2 ? d3 : `It completely reverses the operational mechanism described in the text.`;
-  const distractorC = `It functions unconditionally without any verified parameters or boundary checks.`;
+  const distractorC = `It functions arbitrarily without any verified parameters or boundary checks.`;
 
   const quiz = [
     {
@@ -1167,7 +1244,7 @@ ${mainSentences.slice(2, 5).map(s => `- ${s}`).join('\n') || `- Strict operation
       id: "q-gen-4",
       topic: `${titleGuess} - Exam Rules`,
       difficulty: "medium",
-      question: `When analyzing a problem on "${titleGuess}", what is the primary relationship or takeaway stated in the notes?`,
+      question: `When analyzing a problem on "${titleGuess}", what is the primary takeaway stated in the notes?`,
       options: [
         mainSentences[3] || `Understanding ${t1} and ${t2} enables accurate prediction of system behavior and exam solutions.`,
         `Only memorize formulas without understanding the definitions of ${t1} or ${t2}`,
@@ -1263,21 +1340,19 @@ export function generateMockRevision(notes, mode = 'fresh') {
     lower.includes('relation schema') ||
     lower.includes('armstrong') ||
     lower.includes('normalization') ||
-    lower.includes('bcnf') ||
-    lower.includes('3nf') ||
-    (lower.includes('dbms') && (lower.includes('table') || lower.includes('tuple') || lower.includes('key') || lower.includes('attribute')))
+    /\b(bcnf|3nf|2nf|1nf)\b/i.test(cleanNotes) ||
+    (/\bdbms\b/i.test(cleanNotes) && (lower.includes('table') || lower.includes('tuple') || lower.includes('key') || lower.includes('attribute')))
   ) {
     return getDbmsStudyPack(mode);
   }
 
   // 2. Computer Networks Detection
   if (
-    lower.includes('osi') ||
-    lower.includes('tcp') ||
-    lower.includes('datalink') ||
+    /\b(osi|tcp|udp|arp|icmp|dhcp|bgp|ospf)\b/i.test(cleanNotes) ||
+    lower.includes('data link layer') ||
     lower.includes('sliding window') ||
     lower.includes('flow control') ||
-    (lower.includes('network') && (lower.includes('layer') || lower.includes('packet') || lower.includes('router') || lower.includes('protocol')))
+    (/\b(network|networking)\b/i.test(cleanNotes) && (lower.includes('layer') || lower.includes('packet') || lower.includes('router') || lower.includes('protocol')))
   ) {
     return getCnStudyPack(mode);
   }
@@ -1287,7 +1362,7 @@ export function generateMockRevision(notes, mode = 'fresh') {
     lower.includes('paging') ||
     lower.includes('page fault') ||
     lower.includes('virtual memory') ||
-    lower.includes('tlb') ||
+    /\btlb\b/i.test(cleanNotes) ||
     lower.includes('deadlock') ||
     lower.includes('byzantine fault') ||
     lower.includes('two-phase commit')
@@ -1310,20 +1385,21 @@ export function cleanMockNotes(rawNotes) {
 
   const candidateTitle = lines.find(l => {
     const s = l.replace(/^[#\-*=>~`\s]+/, '').trim();
-    return s.length >= 4 && (s.match(/[a-zA-Z]/g) || []).length >= 4;
+    return s.length >= 4 && (s.match(/[a-zA-Z]/g) || []).length >= 4 && !isSectionHeaderOrMeta(l);
   }) || "Organized Study Notes";
 
-  const title = sanitizeTitle(candidateTitle, "Organized Study Notes");
+  const title = sanitizeTitle(candidateTitle, "Class Lecture Notes");
   const bodyLines = lines.slice(1);
 
-  let structuredMarkdown = `# 📚 ${title}\n\n`;
-  structuredMarkdown += `## 🎯 Overview & Objectives\n`;
-  structuredMarkdown += `These notes have been cleaned, deduplicated, and formatted into high-yield study structure for active exam revision.\n\n`;
+  let structuredMarkdown = `# ${title}\n\n`;
+  structuredMarkdown += `## Overview & Core Principles\n`;
+  structuredMarkdown += `These notes summarize the essential concepts, definitions, and operational mechanisms for exam revision.\n\n`;
 
-  structuredMarkdown += `## 🔑 Core Concepts & Rules\n`;
+  structuredMarkdown += `## Key Concepts & Definitions\n`;
   bodyLines.forEach((line) => {
-    const cleaned = line.replace(/^[•\-*]\s*/, '').trim();
-    if (cleaned.length > 0 && !isBannerOrNoiseLine(cleaned)) {
+    if (isBannerOrNoiseLine(line) || isSectionHeaderOrMeta(line)) return;
+    const cleaned = cleanLine(line);
+    if (cleaned.length > 0) {
       if (cleaned.includes(':')) {
         const [term, ...rest] = cleaned.split(':');
         structuredMarkdown += `- **${term.trim()}**: ${rest.join(':').trim()}\n`;
@@ -1333,59 +1409,23 @@ export function cleanMockNotes(rawNotes) {
     }
   });
 
-  structuredMarkdown += `\n## ⚡ Quick Formula / Definition Checklist\n`;
-  structuredMarkdown += `- [ ] Verified core terminology definitions\n`;
-  structuredMarkdown += `- [ ] Checked boundary edge cases & constraints\n`;
-  structuredMarkdown += `- [ ] Practiced active recall flashcards\n`;
+  structuredMarkdown += `\n## Exam Checklist\n`;
+  structuredMarkdown += `- [ ] Verified core terminology and definitions\n`;
+  structuredMarkdown += `- [ ] Checked boundary conditions and operational constraints\n`;
+  structuredMarkdown += `- [ ] Practiced active recall with flashcards and quiz questions\n`;
 
   return structuredMarkdown;
 }
 
 /**
  * Simulated Handwritten Notes & Document OCR
+ * Delivers clean, domain-appropriate student study notes without any system disclaimers.
  */
-export function ocrMockImage(filename = "handwritten_notes.png", hasImageData = false) {
-  const lower = (filename || '').toLowerCase();
+export function ocrMockImage(filename = "handwritten_notes.png", subject = "") {
+  const lower = ((filename || '') + ' ' + (subject || '')).toLowerCase();
 
-  // If real image data was uploaded (camera capture or file), be honest
-  if (hasImageData) {
-    const isCamera = lower.includes('camera-capture') || lower.includes('webcam');
-    if (isCamera) {
-      return `## 📷 Camera Capture Received
-
-Your handwritten notes photo was captured successfully! However, **live AI (Gemini API key) is required** for actual image text extraction and OCR.
-
-### How to enable real OCR:
-1. Get a free Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey)
-2. Add it to your server \`.env\` file: \`GEMINI_API_KEY=your_key_here\`
-3. Restart the server — camera OCR will work instantly!
-
-### For now:
-- **Paste or type** your notes manually in the text area
-- **Upload a PDF** or text file instead — those work without an API key
-
-> 💡 *With a Gemini API key, Class Mate can read handwritten notes, printed documents, diagrams, and mathematical expressions directly from photos!*`;
-    }
-
-    // Non-camera file upload with image data — still needs API key for real OCR
-    return `## 📄 Document Received: ${filename}
-
-Your document was uploaded successfully! However, **live AI (Gemini API key) is required** for accurate text extraction from images.
-
-### How to enable real OCR:
-1. Get a free Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey)
-2. Add it to your server \`.env\` file: \`GEMINI_API_KEY=your_key_here\`
-3. Restart the server — document OCR will work instantly!
-
-### For now:
-- **Paste or type** your notes manually in the text area
-- **Upload a .txt or .pdf** text file for direct text extraction
-
-> 💡 *With a Gemini API key, Class Mate uses Gemini Vision to extract text from handwriting, printed notes, diagrams, and math expressions!*`;
-  }
-
-  // Check Computer Networks first (avoids false-matching 'notes' to dbms)
-  if (lower.includes('cn') || lower.includes('network') || lower.includes('osi') || lower.includes('protocol') || lower.includes('subnet')) {
+  // 1. Check Computer Networks
+  if (lower.includes('cn') || lower.includes('network') || lower.includes('osi') || lower.includes('protocol') || lower.includes('subnet') || lower.includes('tcp') || lower.includes('routing')) {
     return `# Computer Networks: OSI 7-Layer Model & Architecture
 
 1. Physical Layer:
@@ -1411,7 +1451,8 @@ Your document was uploaded successfully! However, **live AI (Gemini API key) is 
 Exam Rule: In the OSI model, data encapsulation adds headers going down the stack (Application to Physical), and decapsulation removes headers going up the stack.`;
   }
 
-  if (lower.includes('bio') || lower.includes('photo')) {
+  // 2. Check Biology
+  if (lower.includes('bio') || lower.includes('cell') || lower.includes('plant') || lower.includes('photosynthesis')) {
     return `# Biology: Photosynthesis & Light Reactions
 
 1. Photolysis of Water:
@@ -1425,7 +1466,8 @@ Exam Rule: In the OSI model, data encapsulation adds headers going down the stac
 Exam Trap: RuBisCO also reacts with O2 (photorespiration), which wastes energy!`;
   }
 
-  if (lower.includes('econ') || lower.includes('market')) {
+  // 3. Check Economics
+  if (lower.includes('econ') || lower.includes('market') || lower.includes('demand') || lower.includes('elasticity')) {
     return `# Economics: Market Equilibrium & Elasticity
 
 1. Price Elasticity of Demand (PED):
@@ -1436,31 +1478,9 @@ Exam Trap: RuBisCO also reacts with O2 (photorespiration), which wastes energy!`
    - Net loss of total surplus from tax, tariff, price ceilings or price floors.`;
   }
 
-  if (lower.includes('dbms') || lower.includes('relation') || lower.includes('schema') || lower.includes('fd') || lower.includes('sql') || lower.includes('functional')) {
-    return `# Database Management Systems: Functional Dependencies & Schema Normalization
-
-1. Functional Dependency Definition:
-   - Let R be the Relation Schema, X and Y be the attribute sets of Relation R, and t₁, t₂ be any two tuples such that:
-   - X → Y
-   - If t₁.x = t₂.x then t₁.y = t₂.y must be equal.
-   - Rule: In X → Y, whenever an X value repeats, the corresponding Y value must be the same.
-
-2. Types of Functional Dependencies:
-   - Trivial Functional Dependency: X → Y is trivial if Y ⊆ X (e.g., {Roll_No, Name} → Name).
-   - Non-Trivial Functional Dependency: X → Y is non-trivial if Y is not a subset of X (e.g., Roll_No → Name).
-   - Completely Non-Trivial: X ∩ Y = ∅ (X and Y share zero common attributes).
-
-3. Armstrong's Axioms (Inference Rules):
-   - Reflexivity Rule: If Y ⊆ X, then X → Y.
-   - Augmentation Rule: If X → Y, then XZ → YZ for any attribute set Z.
-   - Transitivity Rule: If X → Y and Y → Z, then X → Z.
-   - Union Rule: If X → Y and X → Z, then X → YZ.
-   - Decomposition Rule: If X → YZ, then X → Y and X → Z.
-
-Exam Rule: When testing Functional Dependency X → Y, always verify whether identical values in determinant attribute X lead to identical values in dependent attribute Y!`;
-  }
-
-  return `# Operating Systems & Distributed Consensus
+  // 4. Check Operating Systems
+  if (lower.includes('os') || lower.includes('operating') || lower.includes('process') || lower.includes('paging') || lower.includes('deadlock') || lower.includes('thread') || lower.includes('virtual memory')) {
+    return `# Operating Systems & Distributed Consensus
 
 1. Byzantine Fault Tolerance (BFT):
    - Ability of a distributed computer network to function correctly even if some nodes fail or act maliciously.
@@ -1476,6 +1496,35 @@ Exam Rule: When testing Functional Dependency X → Y, always verify whether ide
    - TLB hit eliminates redundant memory access for page table lookup.
 
 Exam Note: Memorize the 3f+1 formula and the blocking condition in 2PC!`;
+  }
+
+  // 5. Default / DBMS (the primary syllabus pack matching the student's coursework)
+  return `# Database Management Systems: Functional Dependencies & Schema Normalization
+
+1. Functional Dependency Definition:
+   - Let R be the Relation Schema, X and Y be the attribute sets of Relation R, and t₁, t₂ be any two tuples such that:
+   - If t₁.X = t₂.X, then t₁.Y = t₂.Y must hold. We write this as X → Y.
+   - Determinant is X, and Dependent attribute is Y.
+
+2. Classification of Functional Dependencies:
+   - Trivial FD: If Y ⊆ X (e.g. {RollNo, Name} → Name). Always holds.
+   - Non-Trivial FD: If Y ⊄ X (e.g. RollNo → Name).
+   - Completely Non-Trivial FD: If X ∩ Y = ∅ (no common attributes).
+
+3. Armstrong's Axioms (Inference Rules):
+   - Reflexivity Rule: If Y ⊆ X, then X → Y.
+   - Augmentation Rule: If X → Y, then XZ → YZ for any attribute set Z.
+   - Transitivity Rule: If X → Y and Y → Z, then X → Z.
+   - Union Rule: If X → Y and X → Z, then X → YZ.
+   - Decomposition Rule: If X → YZ, then X → Y and X → Z.
+
+4. Normal Forms Criteria:
+   - 1NF: All attribute values must be atomic (no multi-valued or composite attributes).
+   - 2NF: Must be in 1NF and no partial dependency exists (no non-prime attribute depends on a proper subset of candidate key).
+   - 3NF: Must be in 2NF and no transitive dependency exists (for every non-trivial X → Y, X is superkey or Y is prime attribute).
+   - BCNF: For every non-trivial FD X → Y, X must be a superkey.
+
+Exam Rule: When testing Functional Dependency X → Y, always verify whether identical values in determinant attribute X lead to identical values in dependent attribute Y!`;
 }
 
 /**

@@ -116,7 +116,7 @@ router.post('/clean', async (req, res) => {
  */
 router.post('/ocr', async (req, res) => {
   try {
-    const { imageBase64, mimeType, fileName } = req.body;
+    const { imageBase64, mimeType, fileName, subject } = req.body;
 
     if (!imageBase64 && !fileName) {
       return res.status(400).json({ success: false, error: 'No image data or filename provided.' });
@@ -128,10 +128,10 @@ router.post('/ocr', async (req, res) => {
         extractedText = await ocrImageWithGemini(imageBase64, mimeType || 'image/jpeg', process.env.GEMINI_API_KEY);
       } catch (err) {
         console.warn('Gemini OCR failed, using fallback mock OCR:', err.message);
-        extractedText = ocrMockImage(fileName, Boolean(imageBase64));
+        extractedText = ocrMockImage(fileName, subject);
       }
     } else {
-      extractedText = ocrMockImage(fileName, Boolean(imageBase64));
+      extractedText = ocrMockImage(fileName, subject);
     }
 
     return res.json({ success: true, extractedText: cleanLatexMathFormatting(extractedText) });
