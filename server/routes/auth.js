@@ -26,6 +26,18 @@ export const authLimiter = rateLimit({
 });
 
 /**
+ * GET /api/auth/config
+ * Returns public configuration (e.g., Google OAuth Client ID) to client
+ */
+authRouter.get('/config', (req, res) => {
+  return res.json({
+    success: true,
+    googleClientId: process.env.GOOGLE_CLIENT_ID || ''
+  });
+});
+
+
+/**
  * Generates a signed JWT session token with 7-day expiration.
  */
 function generateToken(user) {

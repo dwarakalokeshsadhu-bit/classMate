@@ -23,7 +23,21 @@ export default function AuthLandingPage({ onLogin }) {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+  const [googleClientId, setGoogleClientId] = useState(import.meta.env.VITE_GOOGLE_CLIENT_ID || '');
+
+  // Auto-fetch Google Client ID from backend if not provided at build-time
+  useEffect(() => {
+    if (!googleClientId) {
+      fetch(apiUrl('/api/auth/config'))
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.googleClientId) {
+            setGoogleClientId(data.googleClientId);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [googleClientId]);
 
   // Google Sign-In response handler
   const handleGoogleSuccess = async (credential) => {
