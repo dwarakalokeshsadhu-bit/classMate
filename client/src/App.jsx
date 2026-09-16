@@ -41,8 +41,8 @@ export default function App() {
   const [activeView, setActiveView] = useState('input'); // 'input' | 'summary' | 'flashcards' | 'quiz' | 'analytics' | 'mistakes' | 'slides' | 'tutor' | 'plan'
   const [isUserDetailsOpen, setIsUserDetailsOpen] = useState(false);
 
-  // Subject management
-  const [savedSubjects, setSavedSubjects] = useState(['General', 'Computer Science', 'Biology', 'Economics']);
+  // Subject management - Dynamic subjects created from user notes
+  const [savedSubjects, setSavedSubjects] = useState(['General']);
   const [currentSubject, setCurrentSubject] = useState('General');
   const [savedDecks, setSavedDecks] = useState({}); // { [subject]: { notes, studyData } }
 
@@ -80,7 +80,19 @@ export default function App() {
       localStorage.removeItem('pm_note_history');
 
       const storedSubjects = localStorage.getItem('pm_subjects');
-      if (storedSubjects) setSavedSubjects(JSON.parse(storedSubjects));
+      if (storedSubjects) {
+        try {
+          const parsed = JSON.parse(storedSubjects);
+          const filtered = Array.isArray(parsed)
+            ? parsed.filter(s => !['Computer Science', 'Biology', 'Economics'].includes(s))
+            : [];
+          const finalSubjects = filtered.length > 0 ? Array.from(new Set(['General', ...filtered])) : ['General'];
+          setSavedSubjects(finalSubjects);
+          localStorage.setItem('pm_subjects', JSON.stringify(finalSubjects));
+        } catch (e) {
+          setSavedSubjects(['General']);
+        }
+      }
 
       const storedReminder = localStorage.getItem('pm_reminder');
       if (storedReminder) setDailyReminderEnabled(storedReminder === 'true');
@@ -491,6 +503,7 @@ export default function App() {
         onOpenHistory={() => setIsHistoryOpen(true)}
         historyCount={noteHistory.length}
         onLogout={handleLogout}
+        onAddSubject={handleSaveCurrentSubject}
       />
 
       {/* Main Viewport */}
