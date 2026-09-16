@@ -8,6 +8,7 @@ import AuthLandingPage from './components/AuthLandingPage.jsx';
 import StudyPlanModal from './components/StudyPlanModal.jsx';
 import UserDetailsModal from './components/UserDetailsModal.jsx';
 import HistoryModal from './components/HistoryModal.jsx';
+import ProgressDashboard from './components/ProgressDashboard.jsx';
 import { sanitizeNotesInput, containsMojiboke } from './utils/textSanitizer.js';
 import { apiUrl, authFetch } from './utils/api.js';
 
@@ -551,6 +552,18 @@ export default function App() {
                   onClose={() => setActiveView(studyData ? 'summary' : 'input')}
                 />
               </div>
+            ) : (activeView === 'analytics' || activeView === 'progress') ? (
+              <ProgressDashboard
+                noteHistory={noteHistory}
+                currentSubject={currentSubject}
+                studyData={studyData}
+                onSelectTopic={(item) => handleRestoreFromHistory(item)}
+                onNewNotes={() => {
+                  handleStartFreshNotes();
+                  setActiveView('input');
+                }}
+                currentUser={currentUser}
+              />
             ) : activeView === 'input' || !studyData ? (
               <NotesInputScreen
                 notes={notes}

@@ -3,6 +3,7 @@ import {
   TrendingUp, AlertTriangle, CheckCircle, HelpCircle, ShieldAlert,
   Target, Sparkles, BookOpen, Clock, ArrowRight
 } from 'lucide-react';
+import ProgressDashboard from './ProgressDashboard.jsx';
 
 export default function AnalyticsDashboard({
   quizHistory = [],
@@ -11,15 +12,9 @@ export default function AnalyticsDashboard({
   onJumpToMistakes,
   onStudyNext
 }) {
-  // If no quiz has been taken yet
+  // If no quiz has been taken yet, render ProgressDashboard
   if (!questionResults || questionResults.length === 0) {
-    return (
-      <div className="analytics-empty">
-        <Target size={40} color="#6366f1" style={{ marginBottom: 12 }} />
-        <h3>Smart Learning & Weakness Detector</h3>
-        <p>Complete at least one Self-Test Quiz to unlock your 2x2 Confidence Matrix, Weak-Topic Detection, and First Attempt → Final Mastery tracking.</p>
-      </div>
-    );
+    return <ProgressDashboard />;
   }
 
   // Calculate 2x2 Matrix Quadrants
