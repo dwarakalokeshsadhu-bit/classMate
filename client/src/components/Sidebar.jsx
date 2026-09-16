@@ -18,8 +18,6 @@ export default function Sidebar({
   onNewNotes,
   onOpenStudyPlan,
   activeDeckTitle = "Active Study Set",
-  currentUser,
-  onOpenUserDetails,
   onOpenHistory,
   historyCount = 0,
   onLogout,

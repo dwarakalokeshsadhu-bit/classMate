@@ -142,8 +142,8 @@ This will definitely be tested on the midterm!"`;
         }
       };
       reader.readAsText(file, 'UTF-8');
-    } else if (['jpg', 'jpeg', 'png', 'webp', 'bmp', 'pdf', 'doc', 'ppt', 'pptx'].includes(ext)) {
-      // Process PDF, legacy DOC/PPT, and images through document OCR endpoint
+    } else if (['jpg', 'jpeg', 'png', 'webp', 'bmp', 'pdf'].includes(ext)) {
+      // Process images and PDFs through document OCR endpoint
       handleOcrImageFile(file);
     } else {
       // Generic fallback through OCR / document service
@@ -154,6 +154,18 @@ This will definitely be tested on the midterm!"`;
   // Handle OCR for image or handwritten notes
   const handleOcrImageFile = async (file) => {
     if (!file) return;
+
+    // Block unsupported binary formats
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (['doc', 'ppt', 'pptx', 'docx', 'xls', 'xlsx'].includes(ext)) {
+      setCleanSuccessNotice('');
+      setOcrError?.(`⚠️ .${ext} files are not supported for OCR. Please upload an image (JPG, PNG, WEBP) or PDF instead.`);
+      if (typeof setOcrError !== 'function') {
+        alert(`⚠️ .${ext} files are not supported for OCR. Please upload an image (JPG, PNG, WEBP) or PDF instead.`);
+      }
+      return;
+    }
+
     setIsTranscribingOcr(true);
 
     const reader = new FileReader();
@@ -172,18 +184,34 @@ This will definitely be tested on the midterm!"`;
           })
         });
 
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson.error || `Server error (${res.status})`);
+        }
+
         const json = await res.json();
         if (json.success && json.extractedText) {
           const cleanExtracted = cleanLatexMathFormatting(json.extractedText);
           setNotes((prev) => (prev ? prev + '\n\n' + cleanExtracted : cleanExtracted));
           setCleanSuccessNotice(`Transcribed notes from ${file.name} successfully!`);
           setTimeout(() => setCleanSuccessNotice(''), 4000);
+        } else {
+          throw new Error(json.error || 'OCR returned no text. Please try a clearer image.');
         }
       } catch (err) {
         console.error('OCR Error:', err);
+        setCleanSuccessNotice('');
+        // Show error to user via the existing notice mechanism
+        setCleanSuccessNotice(`❌ OCR failed: ${err.message}`);
+        setTimeout(() => setCleanSuccessNotice(''), 6000);
       } finally {
         setIsTranscribingOcr(false);
       }
+    };
+    reader.onerror = () => {
+      setIsTranscribingOcr(false);
+      setCleanSuccessNotice('❌ Could not read the file. Please try again.');
+      setTimeout(() => setCleanSuccessNotice(''), 6000);
     };
     reader.readAsDataURL(file);
   };

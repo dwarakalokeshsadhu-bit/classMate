@@ -42,13 +42,31 @@ export default function UserDetailsModal({
   const handleCustomAvatarUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Compress image via canvas to ~20KB (150x150 JPEG)
     const reader = new FileReader();
     reader.onload = (event) => {
-      const base64 = event.target?.result;
-      if (base64) {
-        setFormData(prev => ({ ...prev, avatar: base64 }));
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const size = 150;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        // Center-crop to square
+        const minDim = Math.min(img.width, img.height);
+        const sx = (img.width - minDim) / 2;
+        const sy = (img.height - minDim) / 2;
+        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size);
+        const compressed = canvas.toDataURL('image/jpeg', 0.8);
+        setFormData(prev => ({ ...prev, avatar: compressed }));
         setShowAvatarPicker(false);
-      }
+        // Auto-save avatar immediately
+        const updated = { ...user, avatar: compressed, avatarInitial: (formData.name?.trim()?.[0] || 'S').toUpperCase() };
+        onUpdateUser(updated);
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      };
+      img.src = event.target?.result;
     };
     reader.readAsDataURL(file);
   };
@@ -106,9 +124,21 @@ export default function UserDetailsModal({
           <div className="user-details-avatar-wrap">
             <div className="user-details-avatar" style={{ overflow: 'hidden', padding: 0, position: 'relative' }}>
               <img
-                src={formData.avatar || user?.avatar || "/avatar.png"}
+                src={formData.avatar || user?.avatar || "/avatars/avatar-1.png"}
                 alt={formData.name}
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  // Show initials fallback
+                  const parent = e.currentTarget.parentElement;
+                  if (parent && !parent.querySelector('.avatar-initial-fallback')) {
+                    const span = document.createElement('span');
+                    span.className = 'avatar-initial-fallback';
+                    span.textContent = (formData.name?.[0] || 'S').toUpperCase();
+                    span.style.cssText = 'display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:1.5rem;font-weight:700;color:#96A78D;background:rgba(150,167,141,0.15);';
+                    parent.appendChild(span);
+                  }
+                }}
               />
             </div>
             <button
@@ -168,6 +198,11 @@ export default function UserDetailsModal({
                   className={`avatar-preset-choice ${formData.avatar === av.src ? 'selected' : ''}`}
                   onClick={() => {
                     setFormData(prev => ({ ...prev, avatar: av.src }));
+                    // Auto-save avatar immediately
+                    const updated = { ...user, avatar: av.src, avatarInitial: (formData.name?.trim()?.[0] || 'S').toUpperCase() };
+                    onUpdateUser(updated);
+                    setSaveSuccess(true);
+                    setTimeout(() => setSaveSuccess(false), 3000);
                   }}
                   title={av.label}
                 >

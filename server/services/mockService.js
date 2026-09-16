@@ -1344,8 +1344,45 @@ export function cleanMockNotes(rawNotes) {
 /**
  * Simulated Handwritten Notes & Document OCR
  */
-export function ocrMockImage(filename = "handwritten_notes.png") {
+export function ocrMockImage(filename = "handwritten_notes.png", hasImageData = false) {
   const lower = (filename || '').toLowerCase();
+
+  // If real image data was uploaded (camera capture or file), be honest
+  if (hasImageData) {
+    const isCamera = lower.includes('camera-capture') || lower.includes('webcam');
+    if (isCamera) {
+      return `## 📷 Camera Capture Received
+
+Your handwritten notes photo was captured successfully! However, **live AI (Gemini API key) is required** for actual image text extraction and OCR.
+
+### How to enable real OCR:
+1. Get a free Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey)
+2. Add it to your server \`.env\` file: \`GEMINI_API_KEY=your_key_here\`
+3. Restart the server — camera OCR will work instantly!
+
+### For now:
+- **Paste or type** your notes manually in the text area
+- **Upload a PDF** or text file instead — those work without an API key
+
+> 💡 *With a Gemini API key, Class Mate can read handwritten notes, printed documents, diagrams, and mathematical expressions directly from photos!*`;
+    }
+
+    // Non-camera file upload with image data — still needs API key for real OCR
+    return `## 📄 Document Received: ${filename}
+
+Your document was uploaded successfully! However, **live AI (Gemini API key) is required** for accurate text extraction from images.
+
+### How to enable real OCR:
+1. Get a free Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey)
+2. Add it to your server \`.env\` file: \`GEMINI_API_KEY=your_key_here\`
+3. Restart the server — document OCR will work instantly!
+
+### For now:
+- **Paste or type** your notes manually in the text area
+- **Upload a .txt or .pdf** text file for direct text extraction
+
+> 💡 *With a Gemini API key, Class Mate uses Gemini Vision to extract text from handwriting, printed notes, diagrams, and math expressions!*`;
+  }
 
   // Check Computer Networks first (avoids false-matching 'notes' to dbms)
   if (lower.includes('cn') || lower.includes('network') || lower.includes('osi') || lower.includes('protocol') || lower.includes('subnet')) {

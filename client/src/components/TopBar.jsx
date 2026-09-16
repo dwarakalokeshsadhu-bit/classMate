@@ -148,10 +148,20 @@ export default function TopBar({
             >
               <div className="user-avatar-circle" style={{ overflow: 'hidden', padding: 0 }}>
                 <img
-                  src={currentUser.avatar || "/avatar.png"}
+                  src={currentUser.avatar || "/avatars/avatar-1.png"}
                   alt={currentUser.name}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    const parent = e.currentTarget.parentElement;
+                    if (parent && !parent.querySelector('.avatar-initial-fallback')) {
+                      const span = document.createElement('span');
+                      span.className = 'avatar-initial-fallback';
+                      span.textContent = (currentUser.name?.[0] || 'S').toUpperCase();
+                      span.style.cssText = 'display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:0.8rem;font-weight:700;color:#96A78D;';
+                      parent.appendChild(span);
+                    }
+                  }}
                 />
               </div>
               <span className="user-pill-name">{currentUser.name}</span>

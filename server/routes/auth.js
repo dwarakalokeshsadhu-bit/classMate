@@ -483,4 +483,72 @@ authRouter.post('/google', authLimiter, async (req, res) => {
   }
 });
 
+/**
+ * PUT /api/auth/profile
+ * Updates authenticated user's profile fields in MongoDB.
+ * Accepts: name, avatar, branch, rollNo, college, semester
+ * Avatar base64 data URLs are validated for size (max 200KB).
+ */
+authRouter.put('/profile', requireAuth, async (req, res) => {
+  try {
+    const { name, avatar, branch, rollNo, college, semester } = req.body;
+
+    const isConnected = await ensureDbConnected();
+    if (!isConnected) {
+      return res.status(503).json({
+        success: false,
+        error: 'MongoDB database is currently unreachable.'
+      });
+    }
+
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User account not found.' });
+    }
+
+    // Update only provided fields
+    if (name && name.trim()) user.name = name.trim();
+    if (branch) user.branch = branch;
+    if (rollNo) user.rollNo = rollNo;
+    if (college) user.college = college;
+    if (semester) user.semester = semester;
+
+    if (avatar) {
+      // Validate base64 avatar size (reject if > 200KB to prevent DB bloat)
+      if (avatar.startsWith('data:')) {
+        const sizeInBytes = Math.ceil((avatar.length * 3) / 4);
+        if (sizeInBytes > 200 * 1024) {
+          return res.status(400).json({
+            success: false,
+            error: 'Avatar image is too large. Please use a smaller image (max 200KB).'
+          });
+        }
+      }
+      user.avatar = avatar;
+    }
+
+    await user.save();
+
+    const userPayload = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      branch: user.branch,
+      rollNo: user.rollNo,
+      college: user.college,
+      role: user.role,
+      avatar: user.avatar,
+      avatarInitial: (user.name?.[0] || 'S').toUpperCase()
+    };
+
+    return res.json({
+      success: true,
+      message: 'Profile updated successfully.',
+      user: userPayload
+    });
+  } catch (err) {
+    console.error('Profile update error:', err);
+    return res.status(500).json({ success: false, error: 'Could not update profile.' });
+  }
+});
 

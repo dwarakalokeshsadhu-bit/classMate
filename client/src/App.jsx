@@ -23,7 +23,7 @@ export default function App() {
       const stored = localStorage.getItem('pm_user');
       if (!stored) return null;
       const parsed = JSON.parse(stored);
-      if (!parsed.avatar) parsed.avatar = '/avatar.png';
+      if (!parsed.avatar) parsed.avatar = '/avatars/avatar-1.png';
       return parsed;
     } catch (e) {
       return null;
@@ -167,6 +167,25 @@ export default function App() {
       localStorage.setItem('pm_user', JSON.stringify(updatedUserData));
     } catch (e) {
       console.warn('Could not update user session:', e);
+    }
+    // Persist to backend MongoDB
+    const token = localStorage.getItem('pm_token');
+    if (token) {
+      fetch(apiUrl('/api/auth/profile'), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: updatedUserData.name,
+          avatar: updatedUserData.avatar,
+          branch: updatedUserData.branch,
+          rollNo: updatedUserData.rollNo,
+          college: updatedUserData.college
+        })
+      }).catch(err => console.warn('Could not persist profile to server:', err));
     }
   };
 
@@ -499,8 +518,6 @@ export default function App() {
         onNewNotes={handleStartFreshNotes}
         onOpenStudyPlan={() => setActiveView('plan')}
         activeDeckTitle={studyData?.title || (notes ? notes.slice(0, 30) + '...' : 'New Revision Session')}
-        currentUser={currentUser}
-        onOpenUserDetails={() => setIsUserDetailsOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
         historyCount={noteHistory.length}
         onLogout={handleLogout}
