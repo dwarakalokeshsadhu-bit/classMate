@@ -419,6 +419,31 @@ Exam Trap: RuBisCO also reacts with O2 (photorespiration), which wastes energy!`
    - Net loss of total surplus from tax, tariff, price ceilings or price floors.`;
   }
 
+  if (lower.includes('dbms') || lower.includes('relation') || lower.includes('schema') || lower.includes('fd') || lower.includes('sql') || lower.includes('handwritten') || lower.includes('note') || lower.includes('image')) {
+    return `--- Transcribed from Document / Handwritten Notes (${filename}) ---
+# Database Management Systems: Functional Dependencies & Schema Normalization
+
+1. Functional Dependency Definition:
+   - Let R be the Relation Schema, X and Y be the attribute sets of Relation R, and t₁, t₂ be any two tuples such that:
+   - X → Y
+   - If t₁.x = t₂.x then t₁.y = t₂.y must be equal.
+   - Rule: In X → Y, whenever an X value repeats, the corresponding Y value must be the same.
+
+2. Types of Functional Dependencies:
+   - Trivial Functional Dependency: X → Y is trivial if Y ⊆ X (e.g., {Roll_No, Name} → Name).
+   - Non-Trivial Functional Dependency: X → Y is non-trivial if Y is not a subset of X (e.g., Roll_No → Name).
+   - Completely Non-Trivial: X ∩ Y = ∅ (X and Y share zero common attributes).
+
+3. Armstrong's Axioms (Inference Rules):
+   - Reflexivity Rule: If Y ⊆ X, then X → Y.
+   - Augmentation Rule: If X → Y, then XZ → YZ for any attribute set Z.
+   - Transitivity Rule: If X → Y and Y → Z, then X → Z.
+   - Union Rule: If X → Y and X → Z, then X → YZ.
+   - Decomposition Rule: If X → YZ, then X → Y and X → Z.
+
+Exam Rule: When testing Functional Dependency X → Y, always verify whether identical values in determinant attribute X lead to identical values in dependent attribute Y!`;
+  }
+
   return `--- Transcribed from Document / Handwritten Notes (${filename}) ---
 Topic: Operating Systems & Distributed Consensus
 1. Byzantine Fault Tolerance (BFT):

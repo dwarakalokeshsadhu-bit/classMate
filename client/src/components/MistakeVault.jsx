@@ -4,6 +4,7 @@ import {
   BookOpen, Sparkles, AlertCircle, Award
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { cleanLatexMathFormatting } from '../utils/textSanitizer.js';
 
 export default function MistakeVault({
   mistakes = [],
@@ -142,7 +143,7 @@ export default function MistakeVault({
             </div>
           </div>
 
-          <div className="drill-question">{currentDrillQuestion.question}</div>
+          <div className="drill-question">{cleanLatexMathFormatting(currentDrillQuestion.question)}</div>
 
           <div className="drill-options">
             {drillOptions.map((opt, oIdx) => {
@@ -165,7 +166,7 @@ export default function MistakeVault({
                   disabled={isDrillChecked}
                 >
                   <span className="quiz-option-letter">{String.fromCharCode(65 + oIdx)}</span>
-                  <span>{opt}</span>
+                  <span>{cleanLatexMathFormatting(opt)}</span>
                 </button>
               );
             })}
@@ -173,7 +174,7 @@ export default function MistakeVault({
 
           {isDrillChecked && (
             <div className="drill-explanation">
-              <strong>Rationale:</strong> {currentDrillQuestion.explanation}
+              <strong>Rationale:</strong> {cleanLatexMathFormatting(currentDrillQuestion.explanation)}
             </div>
           )}
 
@@ -239,26 +240,26 @@ export default function MistakeVault({
               <span className="mistake-topic">{m.topic}</span>
             </div>
 
-            <div className="mistake-item-q">{m.question}</div>
+            <div className="mistake-item-q">{cleanLatexMathFormatting(m.question)}</div>
 
             <div className="mistake-answers-grid">
               <div className="ans-box ans-wrong">
                 <span className="ans-label">Your Previous Answer:</span>
-                <span className="ans-text">❌ {m.userAnswer}</span>
+                <span className="ans-text">❌ {cleanLatexMathFormatting(m.userAnswer)}</span>
               </div>
 
               <div className="ans-box ans-right">
                 <span className="ans-label">Correct Exam Answer:</span>
-                <span className="ans-text">✅ {m.correctAnswer}</span>
+                <span className="ans-text">✅ {cleanLatexMathFormatting(m.correctAnswer)}</span>
               </div>
             </div>
 
             <div className="mistake-explanation-box">
               <strong>💡 Why You Missed It & Rule to Remember:</strong>
-              <p>{m.explanation}</p>
+              <p>{cleanLatexMathFormatting(m.explanation)}</p>
               {m.distractorsExplanation && (
                 <p style={{ marginTop: 6, fontSize: '0.85rem', color: '#64748b' }}>
-                  <strong>Trap Warning:</strong> {m.distractorsExplanation}
+                  <strong>Trap Warning:</strong> {cleanLatexMathFormatting(m.distractorsExplanation)}
                 </p>
               )}
             </div>

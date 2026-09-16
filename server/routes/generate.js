@@ -13,7 +13,7 @@ import {
   chatMockTutor,
   mockStudyPlan
 } from '../services/mockService.js';
-import { sanitizeNotesText } from '../utils/textSanitizer.js';
+import { sanitizeNotesText, cleanLatexMathFormatting } from '../utils/textSanitizer.js';
 
 const router = express.Router();
 
@@ -131,7 +131,7 @@ router.post('/ocr', async (req, res) => {
       extractedText = ocrMockImage(fileName);
     }
 
-    return res.json({ success: true, extractedText });
+    return res.json({ success: true, extractedText: cleanLatexMathFormatting(extractedText) });
   } catch (err) {
     console.error('Error in /api/generate/ocr:', err);
     return res.status(500).json({ success: false, error: err.message });

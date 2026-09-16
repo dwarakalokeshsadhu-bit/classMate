@@ -4,6 +4,7 @@ import {
   Sparkles, AlertCircle, TrendingUp, ShieldAlert, ArrowRight, Check
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { cleanLatexMathFormatting } from '../utils/textSanitizer.js';
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
 
@@ -461,7 +462,7 @@ export default function QuizEngine({
             </div>
 
             {/* Question Text */}
-            <div className="quiz-question">{q.question}</div>
+            <div className="quiz-question">{cleanLatexMathFormatting(q.question)}</div>
 
             {/* Confidence Selector before/during answering */}
             {!isSubmitted && (
@@ -507,7 +508,7 @@ export default function QuizEngine({
                     <span className="quiz-option-letter">
                       {OPTION_LETTERS[oIdx] || String.fromCharCode(65 + oIdx)}
                     </span>
-                    <span style={{ flex: 1 }}>{option}</span>
+                    <span style={{ flex: 1 }}>{cleanLatexMathFormatting(option)}</span>
 
                     {isSubmitted && option === q.correctAnswer && (
                       <CheckCircle2 size={18} color="#10b981" />
@@ -527,13 +528,13 @@ export default function QuizEngine({
                   {isCorrect ? '✅ Explanation (Why Option is Correct):' : '❌ Correction & Deep Explanation:'}
                 </div>
                 <p className="explanation-text">
-                  {q.explanation || `The correct answer is "${q.correctAnswer}". This follows the foundational principles established in your lecture notes.`}
+                  {cleanLatexMathFormatting(q.explanation || `The correct answer is "${q.correctAnswer}". This follows the foundational principles established in your lecture notes.`)}
                 </p>
 
                 {q.distractorsExplanation && (
                   <div className="distractor-box">
                     <strong>⚠️ Why Other Options are Traps:</strong>
-                    <p>{q.distractorsExplanation}</p>
+                    <p>{cleanLatexMathFormatting(q.distractorsExplanation)}</p>
                   </div>
                 )}
 

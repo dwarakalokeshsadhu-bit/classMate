@@ -47,9 +47,84 @@ export function sanitizeNotesInput(raw) {
   });
 
   const finalText = lines.join('\n');
+  const normalizedText = cleanLatexMathFormatting(finalText || (hadMojiboke ? "Cleaned lecture notes ready for revision tools generation." : raw));
 
   return {
-    text: finalText || (hadMojiboke ? "Cleaned lecture notes ready for revision tools generation." : raw),
+    text: normalizedText,
     wasCleaned: hadMojiboke
   };
 }
+
+/**
+ * Normalizes raw LaTeX math and symbols into clean, human-readable student notes
+ */
+export function cleanLatexMathFormatting(str) {
+  if (!str || typeof str !== 'string') return str || '';
+  let res = str;
+
+  // 1. Unpack LaTeX \text{...} wrappers
+  res = res.replace(/\\text\{([^}]+)\}/g, '$1');
+
+  // 2. Convert standard LaTeX operators and arrows to clean Unicode
+  res = res.replace(/\\to\b|\\rightarrow\b/g, '→');
+  res = res.replace(/\\leftarrow\b/g, '←');
+  res = res.replace(/\\leftrightarrow\b/g, '↔');
+  res = res.replace(/\\Rightarrow\b/g, '⇒');
+  res = res.replace(/\\Leftarrow\b/g, '⇐');
+  res = res.replace(/\\leq\b/g, '≤');
+  res = res.replace(/\\geq\b/g, '≥');
+  res = res.replace(/\\neq\b/g, '≠');
+  res = res.replace(/\\approx\b/g, '≈');
+  res = res.replace(/\\times\b/g, '×');
+  res = res.replace(/\\div\b/g, '÷');
+  res = res.replace(/\\pm\b/g, '±');
+  res = res.replace(/\\in\b/g, '∈');
+  res = res.replace(/\\notin\b/g, '∉');
+  res = res.replace(/\\subset\b/g, '⊂');
+  res = res.replace(/\\subseteq\b/g, '⊆');
+  res = res.replace(/\\cup\b/g, '∪');
+  res = res.replace(/\\cap\b/g, '∩');
+  res = res.replace(/\\forall\b/g, '∀');
+  res = res.replace(/\\exists\b/g, '∃');
+
+  // 3. Subscripts like t_1, t_2 -> t₁, t₂
+  const subMap = { '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄', '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉', 'i': 'ᵢ', 'j': 'ⱼ', 'n': 'ₙ', 'k': 'ₖ', 'x': 'ₓ', 'y': 'ᵧ' };
+  res = res.replace(/([a-zA-Z])_([0-9ijnkxy])/g, (m, v, s) => v + (subMap[s] || s));
+  res = res.replace(/([a-zA-Z])_\{([0-9ijnkxy])\}/g, (m, v, s) => v + (subMap[s] || s));
+
+  // 4. Strip display math $$ ... $$
+  res = res.replace(/\$\$\s*([^$]+?)\s*\$\$/g, (m, inner) => inner.trim());
+
+  // 5. Strip inline math $ ... $
+  res = res.replace(/\$([^$\n]+?)\$/g, (m, inner) => inner.trim());
+
+  // 6. Clean unescaped backslashes before letters
+  res = res.replace(/\\([a-zA-Z]+)/g, '$1');
+
+  // 7. Normalize double spaces
+  res = res.replace(/[ \t]{2,}/g, ' ');
+
+  return res.trim();
+}
+
+/**
+ * Recursively cleans all string fields in an object/array from raw LaTeX
+ */
+export function cleanObjectMathFormatting(data) {
+  if (!data) return data;
+  if (typeof data === 'string') {
+    return cleanLatexMathFormatting(data);
+  }
+  if (Array.isArray(data)) {
+    return data.map(item => cleanObjectMathFormatting(item));
+  }
+  if (typeof data === 'object') {
+    const cleanedObj = {};
+    for (const [k, v] of Object.entries(data)) {
+      cleanedObj[k] = cleanObjectMathFormatting(v);
+    }
+    return cleanedObj;
+  }
+  return data;
+}
+

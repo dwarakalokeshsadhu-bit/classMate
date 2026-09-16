@@ -1,13 +1,14 @@
 import { GoogleGenAI } from '@google/genai';
 import { cleanAndParseJSON } from '../utils/jsonCleaner.js';
+import { cleanLatexMathFormatting, cleanObjectMathFormatting } from '../utils/textSanitizer.js';
 
-// Candidate models in preference order (as instructed by Gemini API notice)
+// Candidate models in preference order (valid vision & generative models)
 const GEMINI_CANDIDATE_MODELS = [
   process.env.GEMINI_MODEL,
-  'gemini-3.6-flash',
-  'gemini-3.7-flash',
-  'gemini-3.5-flash-lite',
-  'gemini-2.5-flash'
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash'
 ].filter(Boolean);
 
 /**
@@ -53,7 +54,11 @@ CRITICAL INSTRUCTIONS - 100% NOTE GROUNDING & FIDELITY (MANDATORY):
    - ABSOLUTELY DO NOT create flashcards or quiz questions asking about study techniques, active recall, spaced repetition, flashcard methods, or generic test-taking advice (e.g., NEVER ask "Why is active recall good?" or "How should a student study?").
    - Every single question must test the ACTUAL SUBJECT MATTER found in the notes (e.g., biology mechanisms, code logic, math formulas, historical events, physics laws, algorithmic steps, architectural components).
 
-3. Output a single valid JSON object ONLY. No conversational text, no markdown fences.
+3. CLEAN MATHEMATICAL & RELATIONAL EXPRESSIONS (NO RAW LATEX CODE):
+   - Format all mathematical, relational, or algorithmic expressions in clean readable Unicode text (e.g. use 'X → Y' instead of '$$X \to Y$$', use 't₁', 't₂', use '≤', '≥', '≠', '⊆', '∈').
+   - NEVER wrap plain English words or sentences in \text{} or $$ blocks.
+
+4. Output a single valid JSON object ONLY. No conversational text, no markdown fences.
 
 Strict JSON Output Schema:
 {
@@ -143,8 +148,10 @@ ${notes}
       throw new Error('LLM response missing required properties.');
     }
 
+    const cleanedData = cleanObjectMathFormatting(parsed);
+
     return {
-      ...parsed,
+      ...cleanedData,
       source: 'gemini-live'
     };
   } catch (error) {
@@ -194,10 +201,28 @@ ${rawNotes}
 export async function ocrImageWithGemini(imageBase64, mimeType = 'image/jpeg', apiKey) {
   const ai = new GoogleGenAI({ apiKey });
 
-  const prompt = `You are Pocket Mentor's Document & Handwritten Notes OCR Specialist.
-Transcribe and extract the text from this uploaded document or image of handwritten/printed lecture notes.
-Clean up the handwriting or document content into clear, organized, well-formatted study notes with headers and bullets.
-If equations, diagrams, or arrows exist, transcribe them clearly in text or markdown notation.`;
+  const prompt = `You are Pocket Mentor's Document & Handwritten Notes OCR Transcription Specialist.
+Transcribe and extract the full contents of this uploaded image of handwritten or printed lecture notes.
+
+CRITICAL TRANSCRIPTION GUIDELINES:
+1. HIGH-FIDELITY EXTRACTION:
+   - Extract every word, concept, definition, rule, constraint, theorem, example, and step written in the notes.
+   - Do NOT skip or omit any handwritten text, margins, sub-bullets, or notes.
+   - Structure the extracted text with clear markdown headings (#, ##), clean bullet points, and numbered lists.
+
+2. CLEAN MATHEMATICAL & RELATIONAL EXPRESSIONS (NO RAW LATEX CODE):
+   - DO NOT write unrendered LaTeX syntax like \\text{...}, \\to, or wrapped $$...$$.
+   - Transcribe equations, relations, and logic into clean, readable Unicode notation:
+     - Use arrows: '→' or '->' (e.g. 'X → Y' instead of '$$X \\to Y$$')
+     - Use clean subscripts: 't₁', 't₂' or 't1', 't2'
+     - Write conditional rules clearly: "If t1.x = t2.x, then t1.y = t2.y must be equal."
+     - Use standard symbols: '≤', '≥', '≠', '∈', '⊆', '∪', '∩', '≈'
+   - Preserve all relational schema representations, attributes, and dependencies accurately.
+
+3. DIAGRAMS & FLOWCHARTS:
+   - If handwritten diagrams, trees, tables, or graphs exist, transcribe their labels, nodes, and relationships into clean structured text or markdown tables.
+
+Output ONLY the clean, well-formatted transcribed study notes.`;
 
   const response = await generateWithFallback(ai, {
     contents: [
@@ -214,7 +239,7 @@ If equations, diagrams, or arrows exist, transcribe them clearly in text or mark
     }
   });
 
-  return response.text;
+  return cleanLatexMathFormatting(response.text);
 }
 
 /**

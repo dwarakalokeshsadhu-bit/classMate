@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import mammoth from 'mammoth';
-import { sanitizeNotesInput, containsMojiboke } from '../utils/textSanitizer.js';
+import { sanitizeNotesInput, containsMojiboke, cleanLatexMathFormatting } from '../utils/textSanitizer.js';
 import { apiUrl } from '../utils/api.js';
 import {
   Upload, Sparkles, Loader2, FileText, Lightbulb, Mic, MicOff,
@@ -172,7 +172,8 @@ This will definitely be tested on the midterm!"`;
 
         const json = await res.json();
         if (json.success && json.extractedText) {
-          setNotes((prev) => (prev ? prev + '\n\n' + json.extractedText : json.extractedText));
+          const cleanExtracted = cleanLatexMathFormatting(json.extractedText);
+          setNotes((prev) => (prev ? prev + '\n\n' + cleanExtracted : cleanExtracted));
           setCleanSuccessNotice(`Transcribed notes from ${file.name} successfully!`);
           setTimeout(() => setCleanSuccessNotice(''), 4000);
         }

@@ -3,6 +3,7 @@ import {
   Presentation, ChevronLeft, ChevronRight, Copy, Check,
   Download, Sparkles, Layers
 } from 'lucide-react';
+import { cleanLatexMathFormatting } from '../utils/textSanitizer.js';
 
 export default function PresentationDeck({ slides = [], topicTitle = 'Topic' }) {
   const [activeSlideIdx, setActiveSlideIdx] = useState(0);
@@ -74,17 +75,17 @@ export default function PresentationDeck({ slides = [], topicTitle = 'Topic' }) 
           <span className="slide-topic">{topicTitle}</span>
         </div>
 
-        <h3 className="slide-title">{currentSlide.title}</h3>
+        <h3 className="slide-title">{cleanLatexMathFormatting(currentSlide.title)}</h3>
 
         <ul className="slide-bullets">
           {currentSlide.bullets.map((b, idx) => (
-            <li key={idx}>{b}</li>
+            <li key={idx}>{cleanLatexMathFormatting(b)}</li>
           ))}
         </ul>
 
         <div className="slide-takeaway-box">
           <strong>💡 Executive Takeaway:</strong>
-          <p>{currentSlide.takeaway}</p>
+          <p>{cleanLatexMathFormatting(currentSlide.takeaway)}</p>
         </div>
       </div>
 

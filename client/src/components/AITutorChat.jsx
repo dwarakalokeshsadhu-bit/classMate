@@ -4,6 +4,7 @@ import {
   Code, AlertTriangle, Lightbulb, Compass, Loader2, HelpCircle
 } from 'lucide-react';
 import { apiUrl } from '../utils/api.js';
+import { cleanLatexMathFormatting } from '../utils/textSanitizer.js';
 
 const TUTOR_MODES = [
   { id: 'default', label: 'Tutor Chat', icon: Bot, desc: 'Interactive Q&A' },
@@ -244,7 +245,7 @@ export default function AITutorChat({ notes = '', topicTitle = 'Topic' }) {
             </div>
 
             <div className={`msg-bubble ${m.sender === 'user' ? 'bubble-user' : 'bubble-bot'}`}>
-              <div className="msg-text" style={{ whiteSpace: 'pre-wrap' }}>{m.text}</div>
+              <div className="msg-text" style={{ whiteSpace: 'pre-wrap' }}>{cleanLatexMathFormatting(m.text)}</div>
               <span className="msg-time">{m.timestamp}</span>
 
               {/* Interactive Follow-Up Questions below bot answers */}
@@ -263,7 +264,7 @@ export default function AITutorChat({ notes = '', topicTitle = 'Topic' }) {
                         onClick={() => handleSendMessage(fu)}
                         disabled={isLoading}
                       >
-                        👉 {fu}
+                        👉 {cleanLatexMathFormatting(fu)}
                       </button>
                     ))}
                   </div>

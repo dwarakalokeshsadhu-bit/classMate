@@ -3,6 +3,7 @@ import {
   ChevronLeft, ChevronRight, RotateCw, Volume2, CheckCircle2,
   AlertTriangle, Clock, Shuffle, Filter, Award
 } from 'lucide-react';
+import { cleanLatexMathFormatting } from '../utils/textSanitizer.js';
 
 export default function FlashcardDeck({ flashcards = [], subjectTitle = 'Class Notes' }) {
   const [cards, setCards] = useState(flashcards);
@@ -180,7 +181,7 @@ export default function FlashcardDeck({ flashcards = [], subjectTitle = 'Class N
             </div>
 
             <div className="flashcard-content">
-              {currentCard.question}
+              {cleanLatexMathFormatting(currentCard.question)}
             </div>
 
             <div className="flashcard-hint">
@@ -203,7 +204,7 @@ export default function FlashcardDeck({ flashcards = [], subjectTitle = 'Class N
             </div>
 
             <div className="flashcard-content">
-              {currentCard.answer}
+              {cleanLatexMathFormatting(currentCard.answer)}
             </div>
 
             <div className="flashcard-hint">

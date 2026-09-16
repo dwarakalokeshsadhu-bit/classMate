@@ -11,7 +11,7 @@ import MistakeVault from './MistakeVault.jsx';
 import AITutorChat from './AITutorChat.jsx';
 import PresentationDeck from './PresentationDeck.jsx';
 import StudyPlanModal from './StudyPlanModal.jsx';
-import { containsMojiboke } from '../utils/textSanitizer.js';
+import { containsMojiboke, cleanLatexMathFormatting } from '../utils/textSanitizer.js';
 
 export default function ResultsScreen({
   studyData,
@@ -160,7 +160,7 @@ export default function ResultsScreen({
       <div className="deck-meta-bar">
         <div>
           <span className="deck-subject-tag">📁 {currentSubject}</span>
-          <h2 className="deck-main-title">{title}</h2>
+          <h2 className="deck-main-title">{cleanLatexMathFormatting(title)}</h2>
         </div>
 
         <div className="deck-quick-actions">
@@ -292,7 +292,7 @@ export default function ResultsScreen({
                   {copiedSummary ? 'Copied!' : 'Copy Summary'}
                 </button>
               </div>
-              <p className="summary-text">{summary}</p>
+              <p className="summary-text">{cleanLatexMathFormatting(summary)}</p>
             </div>
 
             {/* Key Points Extraction */}
@@ -313,7 +313,7 @@ export default function ResultsScreen({
                         <div className="point-checkbox">
                           {isChecked && <Check size={12} color="white" />}
                         </div>
-                        <span className="point-text">{pt}</span>
+                        <span className="point-text">{cleanLatexMathFormatting(pt)}</span>
                       </div>
                     );
                   })}
@@ -330,11 +330,11 @@ export default function ResultsScreen({
                 <div className="definitions-grid">
                   {definitions.map((def, idx) => (
                     <div key={idx} className="definition-card">
-                      <div className="def-term">{def.term}</div>
-                      <p className="def-body">{def.definition}</p>
+                      <div className="def-term">{cleanLatexMathFormatting(def.term)}</div>
+                      <p className="def-body">{cleanLatexMathFormatting(def.definition)}</p>
                       {def.example && (
                         <div className="def-example">
-                          <strong>Application:</strong> {def.example}
+                          <strong>Application:</strong> {cleanLatexMathFormatting(def.example)}
                         </div>
                       )}
                     </div>
@@ -351,7 +351,7 @@ export default function ResultsScreen({
                 </h4>
                 <div className="deep-summary-body">
                   <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', color: '#334155' }}>
-                    {deepSummary}
+                    {cleanLatexMathFormatting(deepSummary)}
                   </pre>
                 </div>
               </div>
