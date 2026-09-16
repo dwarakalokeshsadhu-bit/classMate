@@ -69,8 +69,18 @@ export default function CameraCaptureModal({ onCapture, onClose }) {
     isMountedRef.current = true;
     startCamera();
 
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        stopStream();
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
     return () => {
       isMountedRef.current = false;
+      window.removeEventListener('keydown', handleKeyDown);
       stopStream();
       setPreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
@@ -78,7 +88,7 @@ export default function CameraCaptureModal({ onCapture, onClose }) {
       });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [previewUrl, onClose]);
 
   const handleCapture = () => {
     const video = videoRef.current;
