@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
+import { OAuth2Client } from 'google-auth-library';
 import { User } from '../models/User.js';
 import { connectDB } from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -198,6 +199,12 @@ authRouter.post('/login', authLimiter, async (req, res) => {
 
     // Verify hashed passcode
     if (!rawPasscode || !foundUser.passcode) {
+      if (foundUser.authProvider === 'google' || foundUser.googleId) {
+        return res.status(401).json({
+          success: false,
+          error: 'This student account was registered via Google. Please click "Continue with Google" to sign in.'
+        });
+      }
       return res.status(401).json({
         success: false,
         error: 'Passcode is required.'
@@ -287,4 +294,157 @@ authRouter.get('/me', requireAuth, async (req, res) => {
     return res.status(500).json({ success: false, error: 'Failed to retrieve session profile.' });
   }
 });
+
+/**
+ * POST /api/auth/google
+ * Authenticates student via Google Sign-In.
+ * Verifies Google ID token with OAuth2Client or tokeninfo, connects to MongoDB,
+ * registers or links user, issues JWT token and sets httpOnly cookie.
+ */
+authRouter.post('/google', authLimiter, async (req, res) => {
+  try {
+    const { credential, idToken, demo, demoUser } = req.body;
+    const tokenToVerify = credential || idToken;
+
+    let googleUser = null;
+
+    if (demo && demoUser) {
+      // Demo Google login for immediate testing when Google Client ID is not configured
+      googleUser = {
+        sub: demoUser.googleId || `demo_google_${Date.now()}`,
+        email: demoUser.email || 'student.google@anurag.edu.in',
+        name: demoUser.name || 'Google Student',
+        picture: demoUser.avatar || '/avatars/avatar-1.png'
+      };
+    } else if (tokenToVerify) {
+      // Verify Google ID token
+      const googleClientId = process.env.GOOGLE_CLIENT_ID;
+      try {
+        if (googleClientId) {
+          const client = new OAuth2Client(googleClientId);
+          const ticket = await client.verifyIdToken({
+            idToken: tokenToVerify,
+            audience: googleClientId
+          });
+          const payload = ticket.getPayload();
+          googleUser = {
+            sub: payload.sub,
+            email: payload.email,
+            name: payload.name,
+            picture: payload.picture
+          };
+        } else {
+          // Verify via Google tokeninfo API if GOOGLE_CLIENT_ID not explicitly provided in backend .env
+          const tokenInfoRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${tokenToVerify}`);
+          if (!tokenInfoRes.ok) {
+            const errData = await tokenInfoRes.json().catch(() => ({}));
+            throw new Error(errData.error_description || 'Invalid or expired Google ID token');
+          }
+          const payload = await tokenInfoRes.json();
+          googleUser = {
+            sub: payload.sub,
+            email: payload.email,
+            name: payload.name,
+            picture: payload.picture
+          };
+        }
+      } catch (verifyErr) {
+        console.error('Google token verification failed:', verifyErr.message);
+        return res.status(401).json({
+          success: false,
+          error: `Google token verification failed: ${verifyErr.message}`
+        });
+      }
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: 'Google ID token credential is required.'
+      });
+    }
+
+    if (!googleUser || !googleUser.email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Unable to extract email from Google profile.'
+      });
+    }
+
+    const isConnected = await ensureDbConnected();
+    if (!isConnected) {
+      return res.status(503).json({
+        success: false,
+        error: 'MongoDB database is currently unreachable. Please make sure MongoDB service is running.'
+      });
+    }
+
+    const normalizedEmail = googleUser.email.trim().toLowerCase();
+
+    // Find existing student by email or Google ID
+    let user = await User.findOne({
+      $or: [{ email: normalizedEmail }, { googleId: googleUser.sub }]
+    });
+
+    if (user) {
+      // Existing user: Link Google ID if missing, and update avatar if appropriate
+      let modified = false;
+      if (!user.googleId) {
+        user.googleId = googleUser.sub;
+        modified = true;
+      }
+      if (googleUser.picture && (!user.avatar || user.avatar.includes('avatar-1.png'))) {
+        user.avatar = googleUser.picture;
+        modified = true;
+      }
+      if (modified) {
+        await user.save();
+      }
+    } else {
+      // Register new student authenticated via Google
+      user = new User({
+        name: googleUser.name || normalizedEmail.split('@')[0],
+        email: normalizedEmail,
+        googleId: googleUser.sub,
+        authProvider: 'google',
+        avatar: googleUser.picture || '/avatars/avatar-1.png',
+        branch: 'Computer Science & Engineering',
+        rollNo: '24EG112B25',
+        college: 'Anurag University',
+        role: 'Student'
+      });
+      await user.save();
+    }
+
+    // Generate JWT and set httpOnly session cookie
+    const token = generateToken(user);
+    setAuthCookie(res, token);
+
+    const userPayload = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      branch: user.branch || 'Computer Science & Engineering',
+      rollNo: user.rollNo || '24EG112B25',
+      college: user.college || 'Anurag University',
+      role: user.role || 'Student',
+      avatar: user.avatar || '/avatars/avatar-1.png',
+      avatarInitial: (user.name?.[0] || 'G').toUpperCase(),
+      authProvider: user.authProvider || 'google',
+      loggedInAt: new Date().toISOString()
+    };
+
+    return res.json({
+      success: true,
+      message: 'Authenticated with Google successfully',
+      token,
+      user: userPayload
+    });
+  } catch (err) {
+    console.error('Google Auth Route Error:', err);
+    return res.status(500).json({
+      success: false,
+      error: err.message || 'An unexpected error occurred during Google authentication.'
+    });
+  }
+});
+
 

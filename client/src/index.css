@@ -3153,6 +3153,53 @@ body {
   box-shadow: 0 0 0 3px rgba(150, 167, 141, 0.25);
 }
 
+/* Google Auth Button Styles */
+.google-auth-wrapper {
+  width: 100%;
+}
+
+.google-gis-btn-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.btn-google-auth {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 11px 16px;
+  background: #ffffff;
+  color: #202124;
+  border: 1.5px solid #dadce0;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.08);
+  font-family: inherit;
+}
+
+.btn-google-auth:hover {
+  background: #f8f9fa;
+  border-color: #c6c9ce;
+  box-shadow: 0 3px 8px rgba(60, 64, 67, 0.14);
+  transform: translateY(-1px);
+}
+
+.btn-google-auth:active {
+  background: #f1f3f4;
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.1);
+}
+
+.google-icon-svg {
+  flex-shrink: 0;
+}
+
 .auth-divider {
   display: flex;
   align-items: center;
