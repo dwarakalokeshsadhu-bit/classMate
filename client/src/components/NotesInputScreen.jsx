@@ -4,8 +4,9 @@ import { sanitizeNotesInput, containsMojiboke, cleanLatexMathFormatting } from '
 import { apiUrl } from '../utils/api.js';
 import {
   Upload, Sparkles, Loader2, FileText, Lightbulb, Mic, MicOff,
-  Image as ImageIcon, Wand2, FileCode, CheckCircle, AlertCircle
+  Image as ImageIcon, Wand2, FileCode, CheckCircle, AlertCircle, Camera
 } from 'lucide-react';
+import CameraCaptureModal from './CameraCaptureModal.jsx';
 
 export default function NotesInputScreen({
   notes,
@@ -22,6 +23,7 @@ export default function NotesInputScreen({
   const [isCleaning, setIsCleaning] = useState(false);
   const [isTranscribingOcr, setIsTranscribingOcr] = useState(false);
   const [cleanSuccessNotice, setCleanSuccessNotice] = useState('');
+  const [showCameraModal, setShowCameraModal] = useState(false);
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
   const [speechRecognitionSupported, setSpeechRecognitionSupported] = useState(false);
   const speechRecognizerRef = useRef(null);
@@ -259,6 +261,16 @@ This will definitely be tested on the midterm!"`;
 
           <button
             type="button"
+            className="toolbar-btn"
+            onClick={() => setShowCameraModal(true)}
+            disabled={isTranscribingOcr}
+            title="Take a live photo with your camera for OCR transcription"
+          >
+            <Camera size={14} /> Take Photo
+          </button>
+
+          <button
+            type="button"
             className={`toolbar-btn ${isRecordingAudio ? 'recording-active' : ''}`}
             onClick={toggleAudioDictation}
             title="Live Lecture Audio to Notes (Speech-to-Text)"
@@ -401,6 +413,13 @@ This will definitely be tested on the midterm!"`;
           </>
         )}
       </button>
+
+      {showCameraModal && (
+        <CameraCaptureModal
+          onClose={() => setShowCameraModal(false)}
+          onCapture={(file) => handleOcrImageFile(file)}
+        />
+      )}
     </div>
   );
 }
