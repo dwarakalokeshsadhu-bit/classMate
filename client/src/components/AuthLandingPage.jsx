@@ -124,7 +124,39 @@ export default function AuthLandingPage({ onLogin }) {
           scope: 'email profile openid',
           callback: async (tokenRes) => {
             if (tokenRes?.access_token) {
-              await handleGoogleSuccess({ accessToken: tokenRes.access_token });
+              setIsSubmitting(true);
+              setError('');
+              try {
+                // Fetch profile directly using Google OAuth2 userinfo
+                let googleProfile = null;
+                try {
+                  const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { Authorization: `Bearer ${tokenRes.access_token}` }
+                  });
+                  if (userInfoRes.ok) {
+                    googleProfile = await userInfoRes.json();
+                  }
+                } catch (profileErr) {
+                  console.warn('Could not fetch userinfo directly:', profileErr);
+                }
+
+                await handleGoogleSuccess({
+                  accessToken: tokenRes.access_token,
+                  credential: tokenRes.access_token,
+                  idToken: tokenRes.access_token,
+                  demo: Boolean(googleProfile?.email),
+                  demoUser: googleProfile?.email ? {
+                    googleId: googleProfile.sub,
+                    email: googleProfile.email,
+                    name: googleProfile.name || googleProfile.email.split('@')[0],
+                    avatar: googleProfile.picture || '/avatars/avatar-1.png'
+                  } : undefined
+                });
+              } catch (authErr) {
+                console.error('Google auth processing error:', authErr);
+                setError('Could not process Google login. Please try again.');
+                setIsSubmitting(false);
+              }
             } else if (tokenRes?.error) {
               console.error('Google OAuth2 error:', tokenRes);
               setError(`Google Sign-In: ${tokenRes.error_description || tokenRes.error}`);
