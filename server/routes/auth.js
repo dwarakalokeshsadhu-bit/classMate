@@ -315,7 +315,7 @@ authRouter.get('/me', requireAuth, async (req, res) => {
  */
 authRouter.post('/google', authLimiter, async (req, res) => {
   try {
-    const { credential, idToken, demo, demoUser } = req.body;
+    const { credential, idToken, accessToken, demo, demoUser } = req.body;
     const tokenToVerify = credential || idToken;
 
     let googleUser = null;
@@ -328,6 +328,30 @@ authRouter.post('/google', authLimiter, async (req, res) => {
         name: demoUser.name || 'Google Student',
         picture: demoUser.avatar || '/avatars/avatar-1.png'
       };
+    } else if (accessToken) {
+      // Verify via Google OAuth2 userinfo endpoint using access token
+      try {
+        const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        if (!userInfoRes.ok) {
+          const errData = await userInfoRes.json().catch(() => ({}));
+          throw new Error(errData.error_description || 'Invalid Google access token');
+        }
+        const payload = await userInfoRes.json();
+        googleUser = {
+          sub: payload.sub,
+          email: payload.email,
+          name: payload.name,
+          picture: payload.picture
+        };
+      } catch (tokenErr) {
+        console.error('Google access token verification failed:', tokenErr.message);
+        return res.status(401).json({
+          success: false,
+          error: `Google token verification failed: ${tokenErr.message}`
+        });
+      }
     } else if (tokenToVerify) {
       // Verify Google ID token
       const googleClientId = process.env.GOOGLE_CLIENT_ID;
@@ -370,7 +394,7 @@ authRouter.post('/google', authLimiter, async (req, res) => {
     } else {
       return res.status(400).json({
         success: false,
-        error: 'Google ID token credential is required.'
+        error: 'Google ID token or access token is required.'
       });
     }
 

@@ -3867,6 +3867,59 @@ body {
   box-shadow: 0 12px 30px rgba(24, 32, 27, 0.32);
 }
 
+.sf-btn-hero-google {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: #ffffff;
+  color: #1f1f1f;
+  border: 1.5px solid #dadce0;
+  border-radius: 999px;
+  padding: 14px 28px;
+  font-size: 1.04rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  font-family: inherit;
+}
+
+.sf-btn-hero-google:hover {
+  background: #f8f9fa;
+  border-color: #c6c9ce;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(60, 64, 67, 0.16);
+}
+
+.sf-btn-hero-google:active {
+  transform: translateY(0);
+  background: #f1f3f4;
+}
+
+.sf-btn-google-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  color: #1f1f1f;
+  border: 1px solid #dadce0;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: inherit;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.sf-btn-google-nav:hover {
+  background: #f8f9fa;
+  border-color: #bcc1c8;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+}
+
 .sf-hero-chips {
   display: flex;
   flex-wrap: wrap;

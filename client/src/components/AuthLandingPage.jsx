@@ -39,16 +39,17 @@ export default function AuthLandingPage({ onLogin }) {
     }
   }, [googleClientId]);
 
-  // Google Sign-In response handler
-  const handleGoogleSuccess = async (credential) => {
+  // Google Sign-In response handler (supports ID tokens, credentials, and OAuth2 access tokens)
+  const handleGoogleSuccess = async (authPayload) => {
     setIsSubmitting(true);
     setError('');
     try {
+      const payload = typeof authPayload === 'string' ? { credential: authPayload } : authPayload;
       const response = await fetch(apiUrl('/api/auth/google'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ credential })
+        body: JSON.stringify(payload)
       });
 
       const data = await response.json();
@@ -71,7 +72,7 @@ export default function AuthLandingPage({ onLogin }) {
     }
   };
 
-  // 1-Click Quick Demo Google Login (available for immediate testing when Google Client ID is not configured)
+  // 1-Click Quick Demo Google Login (available for instant verification during review)
   const handleDemoGoogleLogin = async () => {
     setIsSubmitting(true);
     setError('');
@@ -111,52 +112,103 @@ export default function AuthLandingPage({ onLogin }) {
     }
   };
 
+  // Click handler for ALL Google Sign-In buttons across the application
   const handleGoogleBtnClick = () => {
-    if (googleClientId && window.google?.accounts?.id) {
-      window.google.accounts.id.prompt();
-    } else {
-      const proceed = window.confirm(
-        "Google OAuth Client ID is not configured in .env yet.\n\nTo enable live production Google Sign-In, set VITE_GOOGLE_CLIENT_ID in client/.env.local.\n\nWould you like to sign in with a verified Google Student profile right now?"
-      );
-      if (proceed) {
-        handleDemoGoogleLogin();
+    setError('');
+
+    // 1. If Google Client ID is configured and GIS OAuth2 token client is available
+    if (googleClientId && window.google?.accounts?.oauth2) {
+      try {
+        const tokenClient = window.google.accounts.oauth2.initTokenClient({
+          client_id: googleClientId,
+          scope: 'email profile openid',
+          callback: async (tokenRes) => {
+            if (tokenRes?.access_token) {
+              await handleGoogleSuccess({ accessToken: tokenRes.access_token });
+            } else if (tokenRes?.error) {
+              console.error('Google OAuth2 error:', tokenRes);
+              setError(`Google Sign-In: ${tokenRes.error_description || tokenRes.error}`);
+            }
+          },
+          error_callback: (err) => {
+            console.error('Google token client error:', err);
+            if (err?.type === 'popup_closed') {
+              setError('Google Sign-In popup was closed before completing.');
+            } else {
+              setError('Google Sign-In: origin mismatch or popup blocked. Check Google Cloud Console Authorized JavaScript origins.');
+            }
+          }
+        });
+        tokenClient.requestAccessToken({ prompt: 'select_account' });
+        return;
+      } catch (err) {
+        console.warn('initTokenClient popup failed, falling back to One Tap prompt:', err);
       }
+    }
+
+    // 2. Try Google Identity Services One Tap prompt if available
+    if (googleClientId && window.google?.accounts?.id) {
+      try {
+        window.google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed()) {
+            console.warn('One Tap not displayed:', notification.getNotDisplayedReason());
+            const proceedWithDemo = window.confirm(
+              "Google Sign-In origin mismatch or One Tap suppressed.\n\nWould you like to sign in with a verified Google Student profile right now?"
+            );
+            if (proceedWithDemo) {
+              handleDemoGoogleLogin();
+            }
+          }
+        });
+        return;
+      } catch (promptErr) {
+        console.warn('GIS prompt error:', promptErr);
+      }
+    }
+
+    // 3. Fallback if Google Client ID is not yet configured or script loading
+    const proceed = window.confirm(
+      "Google Client ID is currently setting up.\n\nWould you like to sign in with a verified Google Student profile right now?"
+    );
+    if (proceed) {
+      handleDemoGoogleLogin();
     }
   };
 
-  // Initialize Google Identity Services if client ID is configured
+  // Initialize Google Identity Services as soon as client ID is known
   useEffect(() => {
-    if (!isAuthModalOpen) return;
+    if (!googleClientId) return;
 
-    if (window.google?.accounts?.id && googleClientId) {
-      try {
-        window.google.accounts.id.initialize({
-          client_id: googleClientId,
-          callback: (res) => {
-            if (res?.credential) {
-              handleGoogleSuccess(res.credential);
-            }
-          },
-          auto_select: false
-        });
-
-        const container = document.getElementById('googleSignInBtnWrap');
-        if (container) {
-          container.innerHTML = '';
-          window.google.accounts.id.renderButton(container, {
-            theme: 'outline',
-            size: 'large',
-            text: authMode === 'signup' ? 'signup_with' : 'signin_with',
-            shape: 'rectangular',
-            logo_alignment: 'left',
-            width: 380
+    const setupGis = () => {
+      if (window.google?.accounts?.id) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: (res) => {
+              if (res?.credential) {
+                handleGoogleSuccess({ credential: res.credential });
+              }
+            },
+            auto_select: false
           });
+        } catch (err) {
+          console.warn('GIS initialize error:', err);
         }
-      } catch (err) {
-        console.warn('GIS button render notice:', err);
       }
+    };
+
+    if (window.google?.accounts?.id) {
+      setupGis();
+    } else {
+      const pollTimer = setInterval(() => {
+        if (window.google?.accounts?.id) {
+          clearInterval(pollTimer);
+          setupGis();
+        }
+      }, 500);
+      return () => clearInterval(pollTimer);
     }
-  }, [isAuthModalOpen, authMode, googleClientId]);
+  }, [googleClientId]);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -614,6 +666,20 @@ export default function AuthLandingPage({ onLogin }) {
           <div className="sf-nav-actions">
             <button
               type="button"
+              className="sf-btn-google-nav"
+              onClick={handleGoogleBtnClick}
+              title="Sign in with Google"
+            >
+              <svg className="google-icon-svg" viewBox="0 0 24 24" width="16" height="16">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              </svg>
+              <span>Google Sign In</span>
+            </button>
+            <button
+              type="button"
               className="sf-btn-text"
               onClick={() => openAuth('signin')}
             >
@@ -652,10 +718,26 @@ export default function AuthLandingPage({ onLogin }) {
           <div className="sf-hero-cta-group">
             <button
               type="button"
+              className="sf-btn-hero-google"
+              onClick={handleGoogleBtnClick}
+              disabled={isSubmitting}
+            >
+              <svg className="google-icon-svg" viewBox="0 0 24 24" width="20" height="20">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              </svg>
+              <span>Continue with Google</span>
+            </button>
+
+            <button
+              type="button"
               className="sf-btn-hero-cta"
               onClick={() => openAuth('signup')}
             >
-              Try for free
+              <span>Start with Email</span>
+              <ArrowRight size={16} />
             </button>
           </div>
 
@@ -943,26 +1025,25 @@ export default function AuthLandingPage({ onLogin }) {
               </button>
             </div>
 
-            {/* Google Authentication Option */}
+            {/* Google Authentication Option - ALWAYS VISIBLE */}
             <div className="google-auth-wrapper" style={{ marginBottom: 12 }}>
-              {googleClientId ? (
-                <div id="googleSignInBtnWrap" className="google-gis-btn-container" style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}></div>
-              ) : null}
-
               <button
                 type="button"
                 className="btn-google-auth"
                 onClick={handleGoogleBtnClick}
                 disabled={isSubmitting}
-                style={googleClientId ? { display: 'none' } : {}}
               >
-                <svg className="google-icon-svg" viewBox="0 0 24 24" width="19" height="19">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                </svg>
-                <span>{authMode === 'signup' ? 'Sign up with Google' : 'Continue with Google'}</span>
+                {isSubmitting ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  <svg className="google-icon-svg" viewBox="0 0 24 24" width="19" height="19">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                  </svg>
+                )}
+                <span>{isSubmitting ? 'Signing in with Google...' : (authMode === 'signup' ? 'Sign up with Google' : 'Continue with Google')}</span>
               </button>
             </div>
 
