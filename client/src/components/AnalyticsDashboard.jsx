@@ -3,7 +3,6 @@ import {
   TrendingUp, AlertTriangle, CheckCircle, HelpCircle, ShieldAlert,
   Target, Sparkles, BookOpen, Clock, ArrowRight
 } from 'lucide-react';
-import ProgressDashboard from './ProgressDashboard.jsx';
 
 export default function AnalyticsDashboard({
   quizHistory = [],
@@ -12,9 +11,27 @@ export default function AnalyticsDashboard({
   onJumpToMistakes,
   onStudyNext
 }) {
-  // If no quiz has been taken yet, render ProgressDashboard
+  // If no quiz has been taken yet, show friendly prompt
   if (!questionResults || questionResults.length === 0) {
-    return <ProgressDashboard />;
+    return (
+      <div className="analytics-empty-state">
+        <Target size={44} color="#4f46e5" style={{ marginBottom: 12 }} />
+        <h3 style={{ margin: '0 0 8px 0', color: '#0f172a', fontWeight: 700 }}>No Quiz Analytics Yet</h3>
+        <p style={{ color: '#64748b', fontSize: '0.9rem', maxWidth: 460, margin: '0 auto 16px', lineHeight: 1.5 }}>
+          Take the Self-Test Quiz first! Class Mate will evaluate your answer accuracy against your confidence levels to reveal hidden learning gaps, danger zones, and topic-wise strengths.
+        </p>
+        {onStudyNext && (
+          <button
+            type="button"
+            className="btn-primary"
+            style={{ width: 'auto', padding: '9px 22px', fontSize: '0.84rem' }}
+            onClick={onStudyNext}
+          >
+            Take Self-Test Quiz
+          </button>
+        )}
+      </div>
+    );
   }
 
   // Calculate 2x2 Matrix Quadrants

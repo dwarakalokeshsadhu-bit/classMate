@@ -1,4 +1,5 @@
 import React from 'react';
+import { BookOpen, Sparkles } from 'lucide-react';
 
 export default function ProgressDashboard({
   noteHistory = [],
@@ -9,66 +10,57 @@ export default function ProgressDashboard({
   quizHistory = [],
   currentUser
 }) {
-  // Default sample topics matching user's reference mockup
-  const defaultSampleTopics = [
-    {
-      topic: 'Network model',
-      style: 'Professor',
-      score: 'Unchecked',
-      status: 'NEEDS REVISION'
-    },
-    {
-      topic: 'ai and its consequences',
-      style: 'Exam Focused',
-      score: '80%',
-      status: 'STRONG'
+  // Build real user topics from noteHistory or active studyData
+  let historyItems = Array.isArray(noteHistory) ? [...noteHistory] : [];
+
+  // If noteHistory is empty but user currently has an active study session, include it
+  if (historyItems.length === 0 && studyData) {
+    historyItems.push({
+      title: studyData.title || currentSubject || 'Lecture Topic',
+      subject: currentSubject || 'General',
+      studyData
+    });
+  }
+
+  // Map real user history into topic rows
+  const userTopics = historyItems.map((item, idx) => {
+    const topicName = item.title || item.subject || 'Lecture Topic';
+    const style = item.studyData?.studyStyle || (idx % 2 === 0 ? 'Professor' : 'Exam Focused');
+
+    const hasQuizScore = item.quizScore !== undefined || item.studyData?.quizScore !== undefined;
+    const rawScore = item.quizScore ?? item.studyData?.quizScore;
+
+    let scoreDisplay = 'Unchecked';
+    let status = 'NEEDS REVISION';
+
+    if (hasQuizScore && rawScore !== null && rawScore !== undefined) {
+      scoreDisplay = `${rawScore}%`;
+      status = rawScore >= 75 ? 'STRONG' : 'NEEDS REVISION';
     }
-  ];
 
-  // Map real user history into topic rows if available
-  const userTopics = (noteHistory && noteHistory.length > 0)
-    ? noteHistory.map((item, idx) => {
-        const topicName = item.title || item.subject || 'Lecture Topic';
-        const style = item.studyData?.studyStyle || (idx % 2 === 0 ? 'Professor' : 'Exam Focused');
+    return {
+      topic: topicName,
+      style,
+      score: scoreDisplay,
+      status,
+      rawItem: item
+    };
+  });
 
-        const hasQuizScore = item.quizScore !== undefined || item.studyData?.quizScore !== undefined;
-        const rawScore = item.quizScore ?? item.studyData?.quizScore;
-
-        let scoreDisplay = 'Unchecked';
-        let status = 'NEEDS REVISION';
-
-        if (hasQuizScore && rawScore !== null && rawScore !== undefined) {
-          scoreDisplay = `${rawScore}%`;
-          status = rawScore >= 75 ? 'STRONG' : 'NEEDS REVISION';
-        } else if (idx === 1 && noteHistory.length <= 2) {
-          scoreDisplay = '80%';
-          status = 'STRONG';
-        }
-
-        return {
-          topic: topicName,
-          style,
-          score: scoreDisplay,
-          status,
-          rawItem: item
-        };
-      })
-    : defaultSampleTopics;
-
-  // Compute 4 KPI metric values matching the reference design
-  const topicsStudiedCount = userTopics.length > 0 ? userTopics.length : 2;
+  // Compute 4 KPI metric values purely from real data
+  const topicsStudiedCount = userTopics.length;
 
   const numericScores = userTopics
-    .map(t => parseInt(t.score, 10))
-    .filter(n => !isNaN(n));
+    .map((t) => parseInt(t.score, 10))
+    .filter((n) => !isNaN(n));
 
   const avgQuizScore = numericScores.length > 0
     ? Math.round(numericScores.reduce((a, b) => a + b, 0) / numericScores.length)
-    : 80;
+    : 0;
 
-  const masteredCount = userTopics.filter(t => t.status === 'STRONG').length;
+  const masteredCount = userTopics.filter((t) => t.status === 'STRONG').length;
 
-  const revisionTime = `${topicsStudiedCount * 12}m`;
+  const revisionTime = topicsStudiedCount > 0 ? `${topicsStudiedCount * 12}m` : '0m';
 
   const handleRowClick = (topicItem) => {
     if (topicItem.rawItem && onSelectTopic) {
@@ -125,41 +117,61 @@ export default function ProgressDashboard({
           </div>
 
           <div className="progress-table-body">
-            {userTopics.map((t, idx) => (
-              <div
-                key={idx}
-                className="progress-table-row"
-                onClick={() => handleRowClick(t)}
-                title={t.rawItem ? `Click to open study kit for ${t.topic}` : `Topic: ${t.topic}`}
-                style={{ cursor: t.rawItem ? 'pointer' : 'default' }}
-              >
-                <div className="col-topic">
-                  <span className="topic-name">{t.topic}</span>
+            {userTopics.length === 0 ? (
+              <div className="progress-empty-row">
+                <BookOpen size={36} color="#94a3b8" style={{ marginBottom: 10 }} />
+                <div className="progress-empty-msg">No Study History Recorded Yet</div>
+                <div className="progress-empty-sub">
+                  You haven't generated any study kits or taken quizzes yet. Once you upload notes and practice, your topic mastery, revision efficiency, and quiz scores will automatically appear here.
                 </div>
-
-                <div className="col-style">
-                  <span className="topic-style">{t.style}</span>
-                </div>
-
-                <div className="col-score">
-                  <span className="topic-score">{t.score}</span>
-                </div>
-
-                <div className="col-status">
-                  {t.status === 'STRONG' ? (
-                    <span className="status-pill strong">
-                      <span className="status-dot-filled">●</span>
-                      <span>STRONG</span>
-                    </span>
-                  ) : (
-                    <span className="status-pill needs-revision">
-                      <span className="status-dot-outline">⭘</span>
-                      <span>NEEDS REVISION</span>
-                    </span>
-                  )}
-                </div>
+                {onNewNotes && (
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    style={{ width: 'auto', padding: '9px 20px', fontSize: '0.82rem', marginTop: 14 }}
+                    onClick={onNewNotes}
+                  >
+                    <Sparkles size={14} /> + Create Your First Study Kit
+                  </button>
+                )}
               </div>
-            ))}
+            ) : (
+              userTopics.map((t, idx) => (
+                <div
+                  key={idx}
+                  className="progress-table-row"
+                  onClick={() => handleRowClick(t)}
+                  title={t.rawItem ? `Click to open study kit for ${t.topic}` : `Topic: ${t.topic}`}
+                  style={{ cursor: t.rawItem ? 'pointer' : 'default' }}
+                >
+                  <div className="col-topic">
+                    <span className="topic-name">{t.topic}</span>
+                  </div>
+
+                  <div className="col-style">
+                    <span className="topic-style">{t.style}</span>
+                  </div>
+
+                  <div className="col-score">
+                    <span className="topic-score">{t.score}</span>
+                  </div>
+
+                  <div className="col-status">
+                    {t.status === 'STRONG' ? (
+                      <span className="status-pill strong">
+                        <span className="status-dot-filled">●</span>
+                        <span>STRONG</span>
+                      </span>
+                    ) : (
+                      <span className="status-pill needs-revision">
+                        <span className="status-dot-outline">⭘</span>
+                        <span>NEEDS REVISION</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
