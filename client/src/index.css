@@ -5346,5 +5346,217 @@ body {
   background: rgba(150, 167, 141, 0.35);
 }
 
+/* ===== Camera Capture Modal ===== */
+.camera-capture-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(14, 18, 15, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 16px;
+  animation: userDetailsFadeIn 0.2s ease-out;
+}
+
+.camera-capture-modal {
+  background: #18201B;
+  color: #f4f7f4;
+  border: 1.5px solid #28362B;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6);
+  padding: 20px;
+  animation: userDetailsSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.camera-capture-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #28362B;
+}
+
+.camera-capture-header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.camera-capture-icon-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(150, 167, 141, 0.15);
+  border: 1px solid rgba(150, 167, 141, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.camera-capture-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f4f7f4;
+}
+
+.camera-capture-header p {
+  margin: 2px 0 0;
+  font-size: 0.76rem;
+  color: #8fa092;
+}
+
+.camera-capture-close-btn {
+  background: transparent;
+  border: none;
+  color: #8fa092;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.camera-capture-close-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.camera-capture-video-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #000000;
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.camera-capture-video,
+.camera-capture-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-capture-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #e4ebe3;
+  font-size: 0.82rem;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.camera-capture-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.camera-capture-controls-row {
+  flex-direction: row;
+  gap: 14px;
+}
+
+.camera-capture-shutter-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #96A78D;
+  border: 4px solid #f4f7f4;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.camera-capture-shutter-btn:hover:not(:disabled) {
+  transform: scale(1.08);
+}
+
+.camera-capture-shutter-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.camera-capture-hint-text {
+  font-size: 0.74rem;
+  color: #8fa092;
+  margin: 0;
+  text-align: center;
+}
+
+.camera-capture-btn-retake,
+.camera-capture-btn-confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  border: 1px solid transparent;
+}
+
+.camera-capture-btn-retake {
+  background: rgba(150, 167, 141, 0.12);
+  border-color: rgba(150, 167, 141, 0.3);
+  color: #e4ebe3;
+}
+
+.camera-capture-btn-retake:hover {
+  background: rgba(150, 167, 141, 0.22);
+}
+
+.camera-capture-btn-confirm {
+  background: #96A78D;
+  color: #18201B;
+}
+
+.camera-capture-btn-confirm:hover {
+  background: #a7b79f;
+  transform: translateY(-1px);
+}
+
+.camera-capture-error-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  padding: 28px 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 14px;
+  color: #fca5a5;
+}
+
+.camera-capture-error-box p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #fcd5d5;
+}
+
 
 
