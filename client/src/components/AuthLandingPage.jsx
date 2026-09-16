@@ -269,11 +269,11 @@ export default function AuthLandingPage({ onLogin }) {
         return;
       }
       if (!email.trim() || (!email.includes('@') && email.trim().length < 4)) {
-        setError('Please enter a valid student email address.');
+        setError('Please enter a valid email address.');
         return;
       }
       if (password.length < 4) {
-        setError('Passcode must be at least 4 characters.');
+        setError('Password must be at least 4 characters.');
         return;
       }
 
@@ -286,7 +286,8 @@ export default function AuthLandingPage({ onLogin }) {
           body: JSON.stringify({
             name: name.trim(),
             email: email.trim(),
-            passcode: password
+            passcode: password,
+            password: password
           })
         });
 
@@ -313,11 +314,11 @@ export default function AuthLandingPage({ onLogin }) {
     } else {
       // Sign In
       if (!email.trim()) {
-        setError('Please enter your student email.');
+        setError('Please enter your email address.');
         return;
       }
       if (!password) {
-        setError('Please enter your passcode.');
+        setError('Please enter your password.');
         return;
       }
 
@@ -1016,28 +1017,37 @@ export default function AuthLandingPage({ onLogin }) {
         </div>
       </footer>
 
-      {/* 7. Authentication Modal (Sign In / Create Account) */}
+      {/* 7. Formal Authentication Modal (Sign In / Create Account) */}
       {isAuthModalOpen && (
         <div className="auth-modal-backdrop" onClick={() => setIsAuthModalOpen(false)}>
-          <div className="auth-modal-card" onClick={(e) => e.stopPropagation()}>
-            {/* Modal Header */}
-            <div className="auth-modal-header">
-              <div className="auth-brand-logo-small">
-                <img src="/logo.png" alt="Class Mate" style={{ width: 28, height: 28, objectFit: 'contain' }} />
-                <span style={{ fontWeight: 800, fontSize: '1.1rem' }}>Class Mate</span>
+          <div className="auth-modal-card formal-auth-card" onClick={(e) => e.stopPropagation()}>
+            {/* Top Close Button */}
+            <button
+              type="button"
+              className="auth-modal-close"
+              onClick={() => setIsAuthModalOpen(false)}
+              title="Close"
+            >
+              <X size={18} />
+            </button>
+
+            {/* Formal Brand Header with Centered Logo */}
+            <div className="formal-auth-header">
+              <div className="formal-auth-logo-box">
+                <img src="/logo.png" alt="Class Mate" className="formal-auth-logo-img" />
               </div>
-              <button
-                type="button"
-                className="auth-modal-close"
-                onClick={() => setIsAuthModalOpen(false)}
-                title="Close"
-              >
-                <X size={18} />
-              </button>
+              <h3 className="formal-auth-title">
+                {authMode === 'signin' ? 'Sign in to Class Mate' : 'Create your account'}
+              </h3>
+              <p className="formal-auth-subtitle">
+                {authMode === 'signin'
+                  ? 'Access your personalized study desk and revision history.'
+                  : 'Start your personalized AI-assisted study journey.'}
+              </p>
             </div>
 
             {/* Segmented Tab Switcher */}
-            <div className="auth-tab-switch">
+            <div className="auth-tab-switch" style={{ marginBottom: 16 }}>
               <button
                 type="button"
                 className={`auth-tab-btn ${authMode === 'signin' ? 'active' : ''}`}
@@ -1092,12 +1102,11 @@ export default function AuthLandingPage({ onLogin }) {
               </div>
             )}
 
-            {/* Secure Form with Anti-Autofill Protection */}
+            {/* Formal Form */}
             <form
               onSubmit={handleAuthSubmit}
               className="auth-form"
               autoComplete="off"
-              data-lpignore="true"
             >
               {/* Dummy hidden inputs to intercept browser heuristic autofill */}
               <input type="text" name="cm_autofill_decoy_user" style={{ display: 'none' }} tabIndex="-1" autoComplete="off" />
@@ -1105,76 +1114,94 @@ export default function AuthLandingPage({ onLogin }) {
 
               {authMode === 'signup' && (
                 <div className="auth-field-group">
-                  <label className="auth-label">Full Name</label>
+                  <label className="auth-label-formal">FULL NAME</label>
                   <input
                     type="text"
-                    name="cm_student_name_field_unique"
-                    className="auth-input"
+                    name="cm_name_field"
+                    className="auth-input-formal"
                     placeholder="Enter your full name..."
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     autoComplete="off"
-                    autoCorrect="off"
-                    spellCheck="false"
-                    data-lpignore="true"
+                    required
                   />
                 </div>
               )}
 
               <div className="auth-field-group">
-                <label className="auth-label">Student Email</label>
+                <label className="auth-label-formal">EMAIL ADDRESS</label>
                 <input
                   type="email"
-                  name="cm_student_identifier_field_unique"
-                  className="auth-input"
-                  placeholder="Enter your student email..."
+                  name="cm_email_field"
+                  className="auth-input-formal"
+                  placeholder="user1@mail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="none"
-                  spellCheck="false"
-                  data-lpignore="true"
+                  required
                 />
               </div>
 
               <div className="auth-field-group">
-                <label className="auth-label">Passcode / Password</label>
+                <label className="auth-label-formal">PASSWORD</label>
                 <input
                   type="password"
-                  name="cm_student_secret_pass_unique"
-                  className="auth-input"
-                  placeholder="Enter your 4+ digit student passcode..."
+                  name="cm_password_field"
+                  className="auth-input-formal"
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
-                  data-lpignore="true"
                   required
                 />
               </div>
 
               <button
                 type="submit"
-                className="btn-primary"
-                style={{ marginTop: 8 }}
+                className="btn-formal-submit"
+                style={{ marginTop: 6 }}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 size={18} className="spinner" />
-                    <span>Connecting...</span>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Signing in...</span>
                   </>
                 ) : (
-                  <>
-                    {authMode === 'signin' ? <LogIn size={18} /> : <UserPlus size={18} />}
-                    <span>{authMode === 'signin' ? 'Sign In to Class Mate' : 'Create Student Account'}</span>
-                  </>
+                  <span>{authMode === 'signin' ? 'Sign In' : 'Create Account'}</span>
                 )}
               </button>
             </form>
 
-            <p className="auth-footer-hint" style={{ marginTop: 18 }}>
-              🔒 Protected client session. Data stays locally within your browser.
+            {/* Bottom Switch Prompt */}
+            <div className="auth-switch-prompt" style={{ textAlign: 'center', marginTop: 18, fontSize: '0.85rem', color: '#64748b' }}>
+              {authMode === 'signin' ? (
+                <span>
+                  Don't have an account?{' '}
+                  <button
+                    type="button"
+                    className="auth-switch-link"
+                    onClick={() => { setAuthMode('signup'); setError(''); }}
+                  >
+                    Create account &rarr;
+                  </button>
+                </span>
+              ) : (
+                <span>
+                  Already have an account?{' '}
+                  <button
+                    type="button"
+                    className="auth-switch-link"
+                    onClick={() => { setAuthMode('signin'); setError(''); }}
+                  >
+                    Sign in &rarr;
+                  </button>
+                </span>
+              )}
+            </div>
+
+            <p className="auth-footer-hint" style={{ marginTop: 14, textAlign: 'center', fontSize: '0.74rem', color: '#94a3b8' }}>
+              🔒 Protected client session &bull; Data stays encrypted & secure
             </p>
           </div>
         </div>

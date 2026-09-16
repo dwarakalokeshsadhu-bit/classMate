@@ -79,8 +79,8 @@ export default function UserDetailsModal({
               <User size={18} color="#96A78D" />
             </div>
             <div>
-              <h3>Student Profile & Details</h3>
-              <p>Academic credentials, active study stats & account info</p>
+              <h3>Profile & Account Details</h3>
+              <p>Active study stats & account info</p>
             </div>
           </div>
           <button
@@ -127,16 +127,12 @@ export default function UserDetailsModal({
               <h4>{formData.name}</h4>
               <span className="user-details-status-badge">
                 <ShieldCheck size={13} color="#96A78D" />
-                Verified Student
+                Verified Account
               </span>
             </div>
             <div className="user-details-email-row">
               <Mail size={13} color="#8fa092" />
               <span>{formData.email}</span>
-            </div>
-            <div className="user-details-branch-row">
-              <GraduationCap size={13} color="#96A78D" />
-              <span>{formData.branch}</span>
             </div>
           </div>
 
@@ -207,66 +203,26 @@ export default function UserDetailsModal({
         {/* Content Area: Either Edit Form OR View Details */}
         {isEditing ? (
           <form onSubmit={handleSave} className="user-details-edit-form">
-            <div className="user-details-form-grid">
+            <div className="user-details-form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
               <div className="user-details-form-group">
                 <label>Full Name</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Student name"
+                  placeholder="Your full name"
                   required
                 />
               </div>
 
               <div className="user-details-form-group">
-                <label>Student Email / Roll ID</label>
+                <label>Email Address</label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="student@college.edu"
+                  placeholder="user@mail.com"
                   required
-                />
-              </div>
-
-              <div className="user-details-form-group">
-                <label>Student Roll Number</label>
-                <input
-                  type="text"
-                  value={formData.rollNo}
-                  onChange={(e) => setFormData({ ...formData, rollNo: e.target.value })}
-                  placeholder="e.g. 24EG112B25"
-                />
-              </div>
-
-              <div className="user-details-form-group">
-                <label>Department / Academic Branch</label>
-                <input
-                  type="text"
-                  value={formData.branch}
-                  onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-                  placeholder="e.g. Computer Science & Engineering"
-                />
-              </div>
-
-              <div className="user-details-form-group">
-                <label>College / University</label>
-                <input
-                  type="text"
-                  value={formData.college}
-                  onChange={(e) => setFormData({ ...formData, college: e.target.value })}
-                  placeholder="e.g. Anurag University"
-                />
-              </div>
-
-              <div className="user-details-form-group">
-                <label>Current Semester / Year</label>
-                <input
-                  type="text"
-                  value={formData.semester}
-                  onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
-                  placeholder="e.g. 4th Semester (Year II)"
                 />
               </div>
             </div>
@@ -326,38 +282,6 @@ export default function UserDetailsModal({
                 <div>
                   <div className="user-stat-value">{quizCount} Qs</div>
                   <div className="user-stat-label">Quiz Ready</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Academic Information Details Section */}
-            <div className="user-details-info-section">
-              <h5 className="user-details-section-title">
-                <School size={15} color="#96A78D" />
-                Academic Information
-              </h5>
-
-              <div className="user-details-info-grid">
-                <div className="user-details-info-item">
-                  <span className="user-info-label">Roll Number / ID</span>
-                  <span className="user-info-value font-mono">{formData.rollNo}</span>
-                </div>
-
-                <div className="user-details-info-item">
-                  <span className="user-info-label">Institution</span>
-                  <span className="user-info-value">{formData.college}</span>
-                </div>
-
-                <div className="user-details-info-item">
-                  <span className="user-info-label">Department</span>
-                  <span className="user-info-value">{formData.branch}</span>
-                </div>
-
-                <div className="user-details-info-item">
-                  <span className="user-info-label">Academic Status</span>
-                  <span className="user-info-value" style={{ color: '#96A78D', fontWeight: 600 }}>
-                    {formData.semester}
-                  </span>
                 </div>
               </div>
             </div>
