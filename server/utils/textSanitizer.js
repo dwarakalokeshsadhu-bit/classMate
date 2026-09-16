@@ -37,11 +37,35 @@ export function isMojibokeOrBinary(str) {
 }
 
 /**
+ * Checks if a line is an OCR/file wrapper banner or pure divider noise
+ */
+export function isBannerOrNoiseLine(line) {
+  if (!line || typeof line !== 'string') return true;
+  const trimmed = line.trim();
+  if (trimmed.length === 0) return true;
+
+  // OCR or Document wrapper banners, e.g.:
+  // --- Transcribed from Document / Handwritten Notes (CN_Unit1_Part2_Notes.pdf) ---
+  // === Extracted text from file.pdf ===
+  if (/^[-=~*#\s]*(?:transcribed|extracted|document|handwritten|uploaded|photo|scan|ocr|page\s+\d+)[^\n]*[-=~*#\s]*$/i.test(trimmed)) {
+    return true;
+  }
+
+  // Pure dashes, equals, or asterisks lines (e.g. ---, ===, * * *)
+  if (/^[-\s=~*]{3,}[^\n]*[-\s=~*]{3,}$/.test(trimmed) || /^[-\s=~*#]{3,}$/.test(trimmed)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Cleans a candidate title, stripping mojiboke and ensuring only readable characters remain.
  * If the title is unreadable or garbled, returns a clean default.
  */
 export function sanitizeTitle(rawTitle, fallback = "Class Lecture Notes") {
   if (!rawTitle || typeof rawTitle !== 'string') return fallback;
+  if (isBannerOrNoiseLine(rawTitle)) return fallback;
 
   // Strip replacement characters, control codes, and markdown symbols
   let cleaned = rawTitle
@@ -52,11 +76,19 @@ export function sanitizeTitle(rawTitle, fallback = "Class Lecture Notes") {
     .replace(/\s+/g, ' ')
     .trim();
 
+  // If the line contains metadata labels like "Topic:", "Subject:", "Title:", clean them
+  cleaned = cleaned.replace(/^(?:Topic|Subject|Title|Chapter|Unit)\s*[:\-]\s*/i, '').trim();
+
   // Count valid alphabetic characters
   const alphaCount = (cleaned.match(/[a-zA-Z]/g) || []).length;
 
-  // If the title has fewer than 3 real letters or is mostly non-alphanumeric noise (like -R{VÉQU )
+  // If the title has fewer than 3 real letters or is mostly non-alphanumeric noise
   if (alphaCount < 3 || (alphaCount / Math.max(1, cleaned.length)) < 0.4) {
+    return fallback;
+  }
+
+  // Reject banner phrases that leak through
+  if (/\b(?:transcribed|handwritten notes|document|page \d+)\b/i.test(cleaned)) {
     return fallback;
   }
 
@@ -93,17 +125,26 @@ export function sanitizeNotesText(rawNotes, defaultFallbackTopic = "Class Lectur
       return alphaCount >= 3 && (alphaCount / line.length) >= 0.35;
     });
 
-  if (lines.length === 0) {
+  // Filter out OCR / Document header noise banners so they don't pollute the notes
+  const nonBannerLines = lines.filter(l => !isBannerOrNoiseLine(l));
+  const effectiveLines = nonBannerLines.length > 0 ? nonBannerLines : lines;
+
+  if (effectiveLines.length === 0) {
     // Input was 100% binary or mojiboke
     return {
-      cleanedText: `--- Transcribed Clean Study Notes ---\nTopic: ${defaultFallbackTopic}\n\n1. Foundational Architecture: Understand core definitions, state transitions, and boundary constraints.\n2. Key Mechanisms: Step-by-step sequential processing with validation checks at each stage.\n3. Common Exam Traps: Watch out for boundary off-by-one errors and distractor options that invert logical conditions.`,
+      cleanedText: `Topic: ${defaultFallbackTopic}\n\n1. Foundational Architecture: Understand core definitions, state transitions, and boundary constraints.\n2. Key Mechanisms: Step-by-step sequential processing with validation checks at each stage.\n3. Common Exam Traps: Watch out for boundary off-by-one errors and distractor options that invert logical conditions.`,
       wasMojiboke: true,
       title: defaultFallbackTopic
     };
   }
 
-  const title = sanitizeTitle(lines[0], defaultFallbackTopic);
-  const cleanedText = lines.join('\n');
+  const candidateTitleLine = effectiveLines.find(l => {
+    const trimmed = l.replace(/^[#\-*=>~`\s]+/, '').trim();
+    return !isBannerOrNoiseLine(l) && trimmed.length >= 4 && (trimmed.match(/[a-zA-Z]/g) || []).length >= 4;
+  }) || effectiveLines[0];
+
+  const title = sanitizeTitle(candidateTitleLine, defaultFallbackTopic);
+  const cleanedText = effectiveLines.join('\n');
 
   return {
     cleanedText,

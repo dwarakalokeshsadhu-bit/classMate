@@ -3,13 +3,19 @@ import { cleanAndParseJSON } from '../utils/jsonCleaner.js';
 import { cleanLatexMathFormatting, cleanObjectMathFormatting } from '../utils/textSanitizer.js';
 
 // Candidate models in preference order (valid vision & generative models)
-const GEMINI_CANDIDATE_MODELS = [
-  process.env.GEMINI_MODEL,
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
+const validDefaultModels = [
   'gemini-2.0-flash',
-  'gemini-1.5-flash'
-].filter(Boolean);
+  'gemini-2.0-flash-lite',
+  'gemini-1.5-flash',
+  'gemini-1.5-pro'
+];
+const envModel = process.env.GEMINI_MODEL && !process.env.GEMINI_MODEL.includes('3.6')
+  ? process.env.GEMINI_MODEL
+  : null;
+const GEMINI_CANDIDATE_MODELS = Array.from(new Set([
+  envModel,
+  ...validDefaultModels
+].filter(Boolean)));
 
 /**
  * Executes a Gemini request with automatic multi-model fallback

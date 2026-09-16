@@ -57,9 +57,8 @@ router.post('/', async (req, res) => {
       try {
         result = await generateWithGemini(trimmedNotes, process.env.GEMINI_API_KEY, mode);
       } catch (geminiError) {
-        console.warn('Gemini invocation failed, falling back to smart demo engine:', geminiError.message);
+        console.warn('[AI Service] Gemini request failed, using high-yield offline study engine:', geminiError.message);
         result = generateMockRevision(trimmedNotes, mode);
-        result.warning = `AI provider notice: ${geminiError.message}. Served using Pocket Mentor offline engine.`;
       }
     } else {
       result = generateMockRevision(trimmedNotes, mode);

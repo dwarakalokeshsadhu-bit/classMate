@@ -24,6 +24,25 @@ export function containsMojiboke(str) {
 }
 
 /**
+ * Checks if a line is an OCR/file wrapper banner or pure divider noise
+ */
+export function isBannerOrNoiseLine(line) {
+  if (!line || typeof line !== 'string') return true;
+  const trimmed = line.trim();
+  if (trimmed.length === 0) return true;
+
+  if (/^[-=~*#\s]*(?:transcribed|extracted|document|handwritten|uploaded|photo|scan|ocr|page\s+\d+)[^\n]*[-=~*#\s]*$/i.test(trimmed)) {
+    return true;
+  }
+
+  if (/^[-\s=~*]{3,}[^\n]*[-\s=~*]{3,}$/.test(trimmed) || /^[-\s=~*#]{3,}$/.test(trimmed)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Sanitizes text, stripping replacement characters and removing binary line fragments
  */
 export function sanitizeNotesInput(raw) {
@@ -46,7 +65,11 @@ export function sanitizeNotesInput(raw) {
     return alphaCount >= 2 && (alphaCount / trimmed.length) >= 0.25;
   });
 
-  const finalText = lines.join('\n');
+  // Filter out OCR / Document noise banners
+  const nonBannerLines = lines.filter(l => !isBannerOrNoiseLine(l));
+  const effectiveLines = nonBannerLines.length > 0 ? nonBannerLines : lines;
+
+  const finalText = effectiveLines.join('\n');
   const normalizedText = cleanLatexMathFormatting(finalText || (hadMojiboke ? "Cleaned lecture notes ready for revision tools generation." : raw));
 
   return {
