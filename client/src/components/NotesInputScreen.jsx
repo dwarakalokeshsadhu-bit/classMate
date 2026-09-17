@@ -145,6 +145,7 @@ This will definitely be tested on the midterm!"`;
   // Handle document file upload (TXT, MD, PDF, DOCX, PPTX)
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
+    if (e.target) e.target.value = '';
     if (!file) return;
 
     setOcrWarningNotice('');
@@ -266,12 +267,23 @@ This will definitely be tested on the midterm!"`;
       const base64Data = typeof dataUrl === 'string' ? dataUrl.split(',')[1] : null;
 
       try {
+        let resolvedMime = file.type;
+        if (!resolvedMime || resolvedMime === 'application/octet-stream') {
+          const ext = file.name.split('.').pop()?.toLowerCase();
+          if (ext === 'pdf') resolvedMime = 'application/pdf';
+          else if (ext === 'png') resolvedMime = 'image/png';
+          else if (ext === 'webp') resolvedMime = 'image/webp';
+          else if (ext === 'bmp') resolvedMime = 'image/bmp';
+          else if (ext === 'gif') resolvedMime = 'image/gif';
+          else resolvedMime = 'image/jpeg';
+        }
+
         const res = await fetch(apiUrl('/api/generate/ocr'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             imageBase64: base64Data,
-            mimeType: file.type || 'image/jpeg',
+            mimeType: resolvedMime || 'image/jpeg',
             fileName: file.name,
             subject: currentSubject || ''
           })
@@ -495,7 +507,11 @@ This will definitely be tested on the midterm!"`;
           <input
             type="file"
             ref={imageInputRef}
-            onChange={(e) => handleOcrImageFile(e.target.files?.[0])}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (e.target) e.target.value = '';
+              handleOcrImageFile(f);
+            }}
             accept="image/*"
             style={{ display: 'none' }}
           />

@@ -180,19 +180,31 @@ router.post('/ocr', async (req, res) => {
       return res.status(400).json({ success: false, error: 'No image data or filename provided.' });
     }
 
+    let resolvedMime = (mimeType || '').trim();
+    if (!resolvedMime || resolvedMime === 'application/octet-stream' || resolvedMime === 'image/jpeg') {
+      const ext = (fileName || '').split('.').pop()?.toLowerCase();
+      if (ext === 'pdf') resolvedMime = 'application/pdf';
+      else if (ext === 'png') resolvedMime = 'image/png';
+      else if (ext === 'webp') resolvedMime = 'image/webp';
+      else if (ext === 'gif') resolvedMime = 'image/gif';
+      else if (ext === 'bmp') resolvedMime = 'image/bmp';
+      else if (ext === 'jpg' || ext === 'jpeg') resolvedMime = 'image/jpeg';
+    }
+    if (!resolvedMime) resolvedMime = 'image/jpeg';
+
     let extractedText;
     let warning;
 
-    if (isUnsupportedOcrMimeType(mimeType)) {
+    if (isUnsupportedOcrMimeType(resolvedMime)) {
       extractedText = ocrMockImage(fileName, subject);
-      warning = `This file format (${mimeType}) isn't supported for AI transcription. PowerPoint, Word, and Excel files can't be read by the AI model directly — try exporting as PDF, or use .pptx/.docx instead. Showing example demo content below instead of a real transcription.`;
+      warning = `This file format (${resolvedMime}) isn't supported for AI transcription. PowerPoint, Word, and Excel files can't be read by the AI model directly — try exporting as PDF, or use .pptx/.docx instead. Showing example demo content below instead of a real transcription.`;
     } else if (hasValidApiKey() && imageBase64) {
       try {
-        extractedText = await ocrImageWithGemini(imageBase64, mimeType || 'image/jpeg', process.env.GEMINI_API_KEY);
+        extractedText = await ocrImageWithGemini(imageBase64, resolvedMime, process.env.GEMINI_API_KEY);
       } catch (err) {
         console.warn('Gemini OCR failed, using fallback mock OCR:', err.message);
         extractedText = ocrMockImage(fileName, subject);
-        warning = describeOcrFailure(err, mimeType);
+        warning = describeOcrFailure(err, resolvedMime);
       }
     } else if (!hasValidApiKey()) {
       extractedText = ocrMockImage(fileName, subject);

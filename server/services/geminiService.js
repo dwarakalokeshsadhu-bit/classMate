@@ -4,14 +4,11 @@ import { cleanLatexMathFormatting, cleanObjectMathFormatting } from '../utils/te
 
 // Candidate models in preference order (valid vision & generative models)
 const validDefaultModels = [
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
-  'gemini-1.5-flash',
-  'gemini-1.5-pro'
+  'gemini-3.5-flash',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash-lite'
 ];
-const envModel = process.env.GEMINI_MODEL && !process.env.GEMINI_MODEL.includes('3.6')
-  ? process.env.GEMINI_MODEL
-  : null;
+const envModel = process.env.GEMINI_MODEL ? process.env.GEMINI_MODEL.trim() : null;
 const GEMINI_CANDIDATE_MODELS = Array.from(new Set([
   envModel,
   ...validDefaultModels
@@ -154,6 +151,14 @@ ${notes}
       throw new Error('LLM response missing required properties.');
     }
 
+    parsed.title = parsed.title || 'Revision Notes';
+    parsed.deepSummary = parsed.deepSummary || parsed.summary;
+    parsed.keyPoints = Array.isArray(parsed.keyPoints) ? parsed.keyPoints : [];
+    parsed.definitions = Array.isArray(parsed.definitions) ? parsed.definitions : [];
+    parsed.subtopics = Array.isArray(parsed.subtopics) ? parsed.subtopics : [];
+    parsed.presentationSlides = Array.isArray(parsed.presentationSlides) ? parsed.presentationSlides : [];
+    parsed.studyTips = Array.isArray(parsed.studyTips) ? parsed.studyTips : [];
+
     const cleanedData = cleanObjectMathFormatting(parsed);
 
     return {
@@ -206,6 +211,7 @@ ${rawNotes}
  */
 export async function ocrImageWithGemini(imageBase64, mimeType = 'image/jpeg', apiKey) {
   const ai = new GoogleGenAI({ apiKey });
+  const cleanBase64 = imageBase64 ? imageBase64.replace(/^data:[^;]+;base64,/, '').trim() : '';
 
   const prompt = `You are Pocket Mentor's Document & Handwritten Notes OCR Transcription Specialist.
 Transcribe and extract the full contents of this uploaded image of handwritten or printed lecture notes.
@@ -235,7 +241,7 @@ Output ONLY the clean, well-formatted transcribed study notes.`;
       {
         inlineData: {
           mimeType,
-          data: imageBase64
+          data: cleanBase64
         }
       },
       { text: prompt }

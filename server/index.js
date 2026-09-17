@@ -25,7 +25,7 @@ const __dirname = path.dirname(__filename);
 // Enable configurable CORS
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(s => s.trim())
-  : ['http://localhost:5173', 'http://127.0.0.1:5173'];
+  : ['http://localhost:5173', 'http://127.0.0.1:5173','http://localhost:5000'];
 
 app.use(cors({
   origin: (origin, callback) => {
