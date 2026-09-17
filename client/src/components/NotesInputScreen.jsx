@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import mammoth from 'mammoth';
+import JSZip from 'jszip';
 import { sanitizeNotesInput, containsMojiboke, cleanLatexMathFormatting } from '../utils/textSanitizer.js';
 import { apiUrl } from '../utils/api.js';
 import {
@@ -7,6 +8,48 @@ import {
   Image as ImageIcon, Wand2, FileCode, CheckCircle, AlertCircle, Camera
 } from 'lucide-react';
 import CameraCaptureModal from './CameraCaptureModal.jsx';
+
+const PPTX_SLIDE_PATH_REGEX = /^ppt\/slides\/slide(\d+)\.xml$/;
+const DRAWINGML_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+
+// Lists a loaded PPTX zip's slide XML entries, sorted numerically (slide2 before slide10).
+function getPptxSlidePaths(zip) {
+  return Object.keys(zip.files)
+    .map((path) => {
+      const match = path.match(PPTX_SLIDE_PATH_REGEX);
+      return match ? { path, num: parseInt(match[1], 10) } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.num - b.num)
+    .map((entry) => entry.path);
+}
+
+// Extracts visible text from one PPTX slide's XML using the browser's native XML parser
+// (correct entity decoding for free, namespace-URI-safe rather than hardcoded to the "a:" prefix).
+function extractTextFromSlideXml(xmlString) {
+  const doc = new DOMParser().parseFromString(xmlString, 'application/xml');
+
+  if (doc.getElementsByTagName('parsererror').length > 0) {
+    throw new Error('Malformed slide XML.');
+  }
+
+  const paragraphs = doc.getElementsByTagNameNS(DRAWINGML_NS, 'p');
+  const paragraphTexts = [];
+
+  for (const para of paragraphs) {
+    const runs = para.getElementsByTagNameNS(DRAWINGML_NS, 't');
+    const runText = Array.from(runs).map((n) => n.textContent || '').join('');
+    if (runText.trim()) paragraphTexts.push(runText.trim());
+  }
+
+  if (paragraphTexts.length === 0) {
+    // Unusual structure with no <a:p> paragraphs — grab any <a:t> runs directly
+    const allRuns = doc.getElementsByTagNameNS(DRAWINGML_NS, 't');
+    return Array.from(allRuns).map((n) => n.textContent || '').join(' ').trim();
+  }
+
+  return paragraphTexts.join('\n');
+}
 
 export default function NotesInputScreen({
   notes,
@@ -23,6 +66,7 @@ export default function NotesInputScreen({
   const [isCleaning, setIsCleaning] = useState(false);
   const [isTranscribingOcr, setIsTranscribingOcr] = useState(false);
   const [cleanSuccessNotice, setCleanSuccessNotice] = useState('');
+  const [ocrWarningNotice, setOcrWarningNotice] = useState('');
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
   const [speechRecognitionSupported, setSpeechRecognitionSupported] = useState(false);
@@ -98,11 +142,12 @@ This will definitely be tested on the midterm!"`;
   const wordCount = notes.trim() ? notes.trim().split(/\s+/).length : 0;
   const charCount = notes.length;
 
-  // Handle document file upload (TXT, MD, PDF, DOC, PPT)
+  // Handle document file upload (TXT, MD, PDF, DOCX, PPTX)
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setOcrWarningNotice('');
     const ext = file.name.split('.').pop()?.toLowerCase();
 
     if (ext === 'docx') {
@@ -128,6 +173,64 @@ This will definitely be tested on the midterm!"`;
         }
       };
       reader.readAsArrayBuffer(file);
+    } else if (ext === 'pptx') {
+      // Extract slide text directly from the PPTX zip/XML structure, mirroring the docx/mammoth branch above
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const arrayBuffer = event.target?.result;
+          if (!arrayBuffer) return;
+
+          const zip = await JSZip.loadAsync(arrayBuffer);
+          const slidePaths = getPptxSlidePaths(zip);
+
+          if (slidePaths.length === 0) {
+            throw new Error('No slides found in PPTX archive.');
+          }
+
+          const slideResults = await Promise.all(
+            slidePaths.map(async (path, idx) => {
+              const xml = await zip.files[path].async('string');
+              let text = '';
+              try {
+                text = extractTextFromSlideXml(xml);
+              } catch (slideErr) {
+                console.warn(`Failed to parse ${path}:`, slideErr);
+              }
+              return { slideNumber: idx + 1, text };
+            })
+          );
+
+          const hasUsableText = slideResults.some((s) => s.text.trim().length > 0);
+
+          if (!hasUsableText) {
+            console.warn('PPTX extraction yielded no usable text, falling back to OCR.');
+            handleOcrImageFile(file);
+            return;
+          }
+
+          const formatted = slideResults
+            .map((s) => `Slide ${s.slideNumber}:\n${s.text.trim() || '(No text content)'}`)
+            .join('\n\n');
+
+          const { text } = sanitizeNotesInput(formatted);
+          setNotes((prev) => (prev ? prev + '\n\n' + text.trim() : text.trim()));
+          setCleanSuccessNotice(`Extracted text from ${slideResults.length} slide(s) in ${file.name} successfully!`);
+          setTimeout(() => setCleanSuccessNotice(''), 4000);
+        } catch (err) {
+          console.warn('PPTX extraction failed, falling back to document OCR:', err);
+          handleOcrImageFile(file);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else if (['ppt', 'doc', 'xls', 'xlsx'].includes(ext)) {
+      // Legacy/binary Office formats — neither mammoth (docx-only) nor Gemini can process these.
+      // Reject upfront rather than wasting Gemini calls and faking success.
+      const formatLabels = { ppt: 'PowerPoint (.ppt)', doc: 'Word (.doc)', xls: 'Excel (.xls)', xlsx: 'Excel (.xlsx)' };
+      const modernFormats = { ppt: '.pptx', doc: '.docx', xls: '.xlsx or PDF', xlsx: 'PDF' };
+      setOcrWarningNotice(
+        `"${file.name}" is a ${formatLabels[ext]} file, which isn't supported for automatic text extraction. Please re-save/export it as ${modernFormats[ext]} and upload again.`
+      );
     } else if (['txt', 'md', 'text', 'csv', 'json'].includes(ext)) {
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -154,19 +257,8 @@ This will definitely be tested on the midterm!"`;
   // Handle OCR for image or handwritten notes
   const handleOcrImageFile = async (file) => {
     if (!file) return;
-
-    // Block unsupported binary formats
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    if (['doc', 'ppt', 'pptx', 'docx', 'xls', 'xlsx'].includes(ext)) {
-      setCleanSuccessNotice('');
-      setOcrError?.(`⚠️ .${ext} files are not supported for OCR. Please upload an image (JPG, PNG, WEBP) or PDF instead.`);
-      if (typeof setOcrError !== 'function') {
-        alert(`⚠️ .${ext} files are not supported for OCR. Please upload an image (JPG, PNG, WEBP) or PDF instead.`);
-      }
-      return;
-    }
-
     setIsTranscribingOcr(true);
+    setOcrWarningNotice('');
 
     const reader = new FileReader();
     reader.onload = async (event) => {
@@ -198,6 +290,9 @@ This will definitely be tested on the midterm!"`;
           setTimeout(() => setCleanSuccessNotice(''), 4000);
         } else {
           throw new Error(json.error || 'OCR returned no text. Please try a clearer image.');
+        }
+        if (json.warning) {
+          setOcrWarningNotice(json.warning);
         }
       } catch (err) {
         console.error('OCR Error:', err);
@@ -265,6 +360,13 @@ This will definitely be tested on the midterm!"`;
         </div>
       )}
 
+      {ocrWarningNotice && (
+        <div className="alert-warning">
+          <AlertCircle size={16} />
+          <span>{ocrWarningNotice}</span>
+        </div>
+      )}
+
       {/* Input Action Bar */}
       <div className="input-toolbar">
         <div className="toolbar-left">
@@ -274,7 +376,7 @@ This will definitely be tested on the midterm!"`;
             onClick={() => fileInputRef.current?.click()}
             title="Upload PDF, Word, PowerPoint, Text file"
           >
-            <Upload size={14} /> Upload Doc (PDF/PPT/DOC/TXT)
+            <Upload size={14} /> Upload Doc (PDF/PPTX/DOCX/TXT)
           </button>
 
           <button
@@ -378,7 +480,7 @@ This will definitely be tested on the midterm!"`;
             <Upload className="upload-icon" size={20} />
             <div>
               <p className="upload-text">Drag & drop files or click to upload</p>
-              <p className="upload-hint">Supports PDF, PPT, DOC, TXT, MD, and Images (JPG/PNG)</p>
+              <p className="upload-hint">Supports PDF, PPTX, DOCX, TXT, MD, and Images (JPG/PNG)</p>
             </div>
           </div>
           <FileText size={20} color="#94a3b8" />

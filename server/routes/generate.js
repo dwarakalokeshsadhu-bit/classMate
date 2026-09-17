@@ -26,6 +26,64 @@ function hasValidApiKey() {
 }
 
 /**
+ * Classifies a Gemini OCR failure into a user-facing warning message.
+ * Distinguishes "unsupported file type" from other transient failures (rate limit,
+ * network, etc.), defaulting safely to a generic message if the heuristic doesn't match.
+ */
+function describeOcrFailure(err, mimeType) {
+  const rawMessage = (err && err.message) || '';
+  const status = err && err.status;
+
+  // @google/genai's ApiError.message is JSON.stringify({ error: { message, code, status } })
+  // per the SDK's error handling — try to unwrap for a more precise inner message; fall back
+  // to the raw text for non-ApiError errors (network/timeout), which aren't JSON.
+  let innerMessage = rawMessage;
+  try {
+    const parsed = JSON.parse(rawMessage);
+    innerMessage = (parsed && parsed.error && parsed.error.message) || rawMessage;
+  } catch (_) {
+    // not JSON — use rawMessage as-is
+  }
+
+  const unsupportedTypePatterns = [
+    /unsupported/i,
+    /invalid.*(mime|media|file).*type/i,
+    /(mime|media).*type.*not.*(supported|valid)/i,
+    /invalid_argument/i
+  ];
+  const looksUnsupportedType =
+    unsupportedTypePatterns.some((re) => re.test(innerMessage)) &&
+    (status === undefined || status === 400);
+
+  if (looksUnsupportedType) {
+    return `This file format${mimeType ? ` (${mimeType})` : ''} isn't supported for AI transcription. PowerPoint, Word, and Excel files can't be read by the AI model directly — try exporting as PDF, or use .pptx/.docx instead. Showing example demo content below instead of a real transcription.`;
+  }
+
+  return `AI transcription is temporarily unavailable right now${status ? ` (error ${status})` : ''}. Showing example demo content below instead of a real transcription.`;
+}
+
+/**
+ * Gemini's inlineData/document-understanding API does not support Office Open XML or
+ * legacy binary Office formats (PowerPoint/Word/Excel) — and, confirmed via live testing, it
+ * does NOT reliably throw an error for these either: it can "succeed" while returning a
+ * confused, useless response instead (it may partially read raw XML bytes as text without
+ * recognizing the file as a real document). So this is checked proactively before ever
+ * calling Gemini, rather than relying on Gemini to fail loudly.
+ */
+const UNSUPPORTED_OCR_MIME_PATTERNS = [
+  /^application\/vnd\.openxmlformats-officedocument\.presentationml/i, // .pptx
+  /^application\/vnd\.ms-powerpoint$/i, // .ppt
+  /^application\/vnd\.openxmlformats-officedocument\.wordprocessingml/i, // .docx
+  /^application\/msword$/i, // .doc
+  /^application\/vnd\.openxmlformats-officedocument\.spreadsheetml/i, // .xlsx
+  /^application\/vnd\.ms-excel$/i // .xls
+];
+
+function isUnsupportedOcrMimeType(mimeType) {
+  return Boolean(mimeType) && UNSUPPORTED_OCR_MIME_PATTERNS.some((re) => re.test(mimeType));
+}
+
+/**
  * POST /api/generate
  * Main study generator: 60s summary, deep summary, key points, definitions, flashcards, quiz, presentation
  */
@@ -123,18 +181,31 @@ router.post('/ocr', async (req, res) => {
     }
 
     let extractedText;
-    if (hasValidApiKey() && imageBase64) {
+    let warning;
+
+    if (isUnsupportedOcrMimeType(mimeType)) {
+      extractedText = ocrMockImage(fileName, subject);
+      warning = `This file format (${mimeType}) isn't supported for AI transcription. PowerPoint, Word, and Excel files can't be read by the AI model directly — try exporting as PDF, or use .pptx/.docx instead. Showing example demo content below instead of a real transcription.`;
+    } else if (hasValidApiKey() && imageBase64) {
       try {
         extractedText = await ocrImageWithGemini(imageBase64, mimeType || 'image/jpeg', process.env.GEMINI_API_KEY);
       } catch (err) {
         console.warn('Gemini OCR failed, using fallback mock OCR:', err.message);
         extractedText = ocrMockImage(fileName, subject);
+        warning = describeOcrFailure(err, mimeType);
       }
-    } else {
+    } else if (!hasValidApiKey()) {
       extractedText = ocrMockImage(fileName, subject);
+      warning = 'Demo mode: no Gemini API key is configured, so this is sample transcription content, not a real reading of your file.';
+    } else {
+      // hasValidApiKey() is true but no imageBase64 was provided in the request
+      extractedText = ocrMockImage(fileName, subject);
+      warning = 'No file data was received by the server, so this is sample demo content rather than a real transcription.';
     }
 
-    return res.json({ success: true, extractedText: cleanLatexMathFormatting(extractedText) });
+    const responsePayload = { success: true, extractedText: cleanLatexMathFormatting(extractedText) };
+    if (warning) responsePayload.warning = warning;
+    return res.json(responsePayload);
   } catch (err) {
     console.error('Error in /api/generate/ocr:', err);
     return res.status(500).json({ success: false, error: err.message });
